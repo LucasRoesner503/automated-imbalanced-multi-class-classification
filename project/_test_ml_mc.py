@@ -51,9 +51,9 @@ def execute_ml(dataset_location, id_openml):
         #     "SMOTEENN", "SMOTETomek"
         # ]
         array_balancing = [
-            "RandomOverSampler"#, "SMOTE", "SVMSMOTE",
-            #"SMOTETomek", "ADASYN", "EditedNearestNeighbours",
-            #"RandomUnderSampler", "TomekLinks"
+            "RandomOverSampler", "SMOTE", "SVMSMOTE",
+            "SMOTETomek", "ADASYN", "EditedNearestNeighbours",
+            "RandomUnderSampler", "TomekLinks"
         ]
         
         resultsList = []
@@ -82,234 +82,6 @@ def execute_ml(dataset_location, id_openml):
     except Exception:
         traceback.print_exc()
         return False
-
-
-def get_problem_type(y):
-    """Return the dataset target type as binary or multiclass."""
-    target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
-    target = pd.Series(target).dropna()
-
-    if target.nunique() > 2:
-        return "multiclass"
-
-    return "binary"
-
-
-def get_target_class_count(y):
-    """Return the number of distinct target classes."""
-    target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
-    target = pd.Series(target).dropna()
-
-    return int(target.nunique())
-
-
-def build_classifiers(problem_type, n_classes):
-    """Build the classifier list for the detected problem type."""
-    classifiers = [
-        #LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
-        #GaussianNB(),
-        #SVC(random_state=42, class_weight='balanced', probability=True),
-        #KNeighborsClassifier(),
-        #RandomForestClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
-        #ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
-        AdaBoostClassifier(random_state=42),
-        #BaggingClassifier(random_state=42, n_jobs=-1),
-        #GradientBoostingClassifier(random_state=42),
-        #EasyEnsembleClassifier(random_state=42, n_jobs=-1),
-        #RUSBoostClassifier(random_state=42),
-        #BalancedBaggingClassifier(random_state=42, n_jobs=-1),
-        #BalancedRandomForestClassifier(random_state=42, n_jobs=-1),
-    ]
-
-    if problem_type == "multiclass":
-        classifiers.extend([
-            #LGBMClassifier(
-            #    random_state=42,
-            #    objective='multiclass',
-            #    num_class=n_classes,
-            #    class_weight='balanced',
-            #    force_col_wise=True,
-             #   n_jobs=-1,
-            #),
-            XGBClassifier(
-                random_state=42,
-                use_label_encoder=False,
-                objective='multi:softprob',
-                num_class=n_classes,
-                eval_metric='mlogloss',
-                n_jobs=-1,
-            ),
-        ])
-    else:
-        classifiers.extend([
-            LGBMClassifier(
-                random_state=42,
-                objective='binary',
-                class_weight='balanced',
-                force_col_wise=True,
-                n_jobs=-1,
-            ),
-            XGBClassifier(
-                random_state=42,
-                use_label_encoder=False,
-                objective='binary:logistic',
-                eval_metric='logloss',
-                n_jobs=-1,
-            ),
-        ])
-
-    return classifiers
-
-
-def get_scoring(problem_type):
-    """Build the scoring dictionary for binary or multiclass evaluation."""
-    if problem_type == "multiclass":
-        scoring = {
-            'balanced_accuracy': 'balanced_accuracy',
-            'f1': 'f1_macro',
-            'roc_auc': 'roc_auc_ovr',
-            'g_mean': make_scorer(geometric_mean_score, average='multiclass', greater_is_better=True),
-            'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
-        }
-        scoring.update(get_multiclass_scoring())
-        return scoring
-
-    return {
-        'balanced_accuracy': 'balanced_accuracy',
-        'f1': 'f1',
-        'roc_auc': 'roc_auc',
-        'g_mean': make_scorer(geometric_mean_score, average='binary', greater_is_better=True),
-        'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
-    }
-
-
-def get_multiclass_scoring():
-    """Build additional scorers that only make sense for multiclass data."""
-    return {
-        'precision_macro': make_scorer(precision_score, average='macro', zero_division=0),
-        'recall_macro': make_scorer(recall_score, average='macro', zero_division=0),
-        'f1_weighted': 'f1_weighted',
-        'matthews_corrcoef': make_scorer(matthews_corrcoef),
-    }
-
-
-def get_multiclass_metrics_from_scores(scores):
-    """Summarize multiclass-only metrics from cross-validation scores."""
-    precision_macro = round(np.mean(scores['test_precision_macro']), 3)
-    precision_macro_std = round(np.std(scores['test_precision_macro']), 3)
-
-    recall_macro = round(np.mean(scores['test_recall_macro']), 3)
-    recall_macro_std = round(np.std(scores['test_recall_macro']), 3)
-
-    f1_weighted = round(np.mean(scores['test_f1_weighted']), 3)
-    f1_weighted_std = round(np.std(scores['test_f1_weighted']), 3)
-
-    matthews_corrcoef = round(np.mean(scores['test_matthews_corrcoef']), 3)
-    matthews_corrcoef_std = round(np.std(scores['test_matthews_corrcoef']), 3)
-
-    return (
-        precision_macro,
-        precision_macro_std,
-        recall_macro,
-        recall_macro_std,
-        f1_weighted,
-        f1_weighted_std,
-        matthews_corrcoef,
-        matthews_corrcoef_std,
-    )
-
-
-def calculate_result_score(result):
-    """Compute the composite score used to compare results."""
-    return round(np.mean([
-        result.balanced_accuracy,
-        result.f1_score,
-        result.roc_auc_score,
-        result.g_mean_score,
-        result.cohen_kappa_score,
-    ]), 3)
-
-
-def get_kb_file_path(base_name, problem_type):
-    """Build the knowledge-base CSV path for a problem type."""
-    return os.path.join(application_path, "output", f"{base_name}_{problem_type}.csv")
-
-
-def load_kb_dataframe(base_name, problem_type, columns=None):
-    """Load a problem-type-specific KB file or return an empty DataFrame."""
-    file_path = get_kb_file_path(base_name, problem_type)
-
-    if os.path.exists(file_path):
-        dataframe = pd.read_csv(file_path, sep=",")
-        if columns is not None:
-            for column_name in columns:
-                if column_name not in dataframe.columns:
-                    dataframe[column_name] = np.nan
-            dataframe = dataframe[columns]
-        return dataframe
-
-    if columns is not None:
-        return pd.DataFrame(columns=columns)
-
-    return pd.DataFrame()
-
-
-def get_results_columns():
-    """Return the stored-results column layout."""
-    return [
-        "dataset",
-        "pre processing",
-        "algorithm",
-        "time",
-        "balanced accuracy",
-        "balanced accuracy std",
-        "f1 score",
-        "f1 score std",
-        "roc auc",
-        "roc auc std",
-        "geometric mean",
-        "geometric mean std",
-        "cohen kappa",
-        "cohen kappa std",
-        "multiclass precision macro",
-        "multiclass precision macro std",
-        "multiclass recall macro",
-        "multiclass recall macro std",
-        "multiclass f1 weighted",
-        "multiclass f1 weighted std",
-        "multiclass matthews corrcoef",
-        "multiclass matthews corrcoef std",
-        "total elapsed time",
-    ]
-
-
-def get_full_results_columns():
-    """Return the full-results column layout."""
-    return [
-        "dataset",
-        "pre processing",
-        "algorithm",
-        "time",
-        "balanced accuracy",
-        "balanced accuracy std",
-        "f1 score",
-        "f1 score std",
-        "roc auc",
-        "roc auc std",
-        "geometric mean",
-        "geometric mean std",
-        "cohen kappa",
-        "cohen kappa std",
-        "multiclass precision macro",
-        "multiclass precision macro std",
-        "multiclass recall macro",
-        "multiclass recall macro std",
-        "multiclass f1 weighted",
-        "multiclass f1 weighted std",
-        "multiclass matthews corrcoef",
-        "multiclass matthews corrcoef std",
-        "final score",
-    ]
 
 
 #  TEST VERSION - execute algorithms without pre processing nor writting to any KB file
@@ -387,6 +159,268 @@ def execute_byCharacteristics(dataset_location, id_openml):
         traceback.print_exc()
         return False
 
+
+
+def build_classifiers(problem_type, n_classes):
+    """Build the classifier list for the detected problem type."""
+    classifiers = [
+        LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
+        GaussianNB(),
+        SVC(random_state=42, class_weight='balanced', probability=True),
+        KNeighborsClassifier(),
+        RandomForestClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
+        ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
+        AdaBoostClassifier(random_state=42),
+        BaggingClassifier(random_state=42, n_jobs=-1),
+        GradientBoostingClassifier(random_state=42),
+        EasyEnsembleClassifier(random_state=42, n_jobs=-1),
+        RUSBoostClassifier(random_state=42),
+        BalancedBaggingClassifier(random_state=42, n_jobs=-1),
+        BalancedRandomForestClassifier(random_state=42, n_jobs=-1),
+    ]
+
+    if problem_type == "multiclass":
+        classifiers.extend([
+            LGBMClassifier(
+                random_state=42,
+                objective='multiclass',
+                num_class=n_classes,
+                class_weight='balanced',
+                force_col_wise=True,
+                n_jobs=-1,
+            ),
+            XGBClassifier(
+                random_state=42,
+                use_label_encoder=False,
+                objective='multi:softprob',
+                num_class=n_classes,
+                eval_metric='mlogloss',
+                n_jobs=-1,
+            ),
+        ])
+    else:
+        classifiers.extend([
+            LGBMClassifier(
+                random_state=42,
+                objective='binary',
+                class_weight='balanced',
+                force_col_wise=True,
+                n_jobs=-1,
+            ),
+            XGBClassifier(
+                random_state=42,
+                use_label_encoder=False,
+                objective='binary:logistic',
+                eval_metric='logloss',
+                n_jobs=-1,
+            ),
+        ])
+
+    return classifiers
+
+def get_problem_type(y):
+    """Return the dataset target type as binary or multiclass."""
+    target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
+    target = pd.Series(target).dropna()
+
+    if target.nunique() > 2:
+        return "multiclass"
+
+    return "binary"
+
+
+def get_target_class_count(y):
+    """Return the number of distinct target classes."""
+    target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
+    target = pd.Series(target).dropna()
+
+    return int(target.nunique())
+
+
+# determine if application is a script file or frozen exe
+application_path = ""
+if getattr(sys, 'frozen', False):
+    application_path = os.path.dirname(sys.executable)
+elif __file__:
+    application_path = os.path.dirname(__file__)
+
+
+
+def resolve_multiclass_dataset_path(dataset_name):
+    """Resolve a dataset name to a CSV file inside input/multiclass."""
+    if not dataset_name:
+        raise ValueError("dataset_name is required")
+
+    dataset_file = dataset_name if dataset_name.endswith(".csv") else dataset_name + ".csv"
+    dataset_path = os.path.join(application_path, "input", "multiclass", dataset_file)
+
+    if not os.path.exists(dataset_path):
+        raise FileNotFoundError(f"Dataset not found: {dataset_path}")
+
+    return dataset_path
+
+
+def get_kb_file_path(base_name, problem_type):
+    """Build the knowledge-base CSV path for a problem type."""
+    return os.path.join(application_path, "output", f"{base_name}_{problem_type}.csv")
+
+
+def load_kb_dataframe(base_name, problem_type, columns=None):
+    """Load a problem-type-specific KB file or return an empty DataFrame."""
+    file_path = get_kb_file_path(base_name, problem_type)
+
+    if os.path.exists(file_path):
+        dataframe = pd.read_csv(file_path, sep=",")
+        if columns is not None:
+            for column_name in columns:
+                if column_name not in dataframe.columns:
+                    dataframe[column_name] = np.nan
+            dataframe = dataframe[columns]
+        return dataframe
+
+    if columns is not None:
+        return pd.DataFrame(columns=columns)
+
+    return pd.DataFrame()
+
+
+def get_scoring(problem_type):
+    """Build the scoring dictionary for binary or multiclass evaluation."""
+    if problem_type == "multiclass":
+        scoring = {
+            'balanced_accuracy': 'balanced_accuracy',
+            'f1': 'f1_macro',
+            'roc_auc': 'roc_auc_ovr',
+            'g_mean': make_scorer(geometric_mean_score, average='multiclass', greater_is_better=True),
+            'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
+        }
+        scoring.update(get_multiclass_scoring())
+        return scoring
+
+    return {
+        'balanced_accuracy': 'balanced_accuracy',
+        'f1': 'f1',
+        'roc_auc': 'roc_auc',
+        'g_mean': make_scorer(geometric_mean_score, average='binary', greater_is_better=True),
+        'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
+    }
+
+
+def get_multiclass_scoring():
+    """Build additional scorers that only make sense for multiclass data."""
+    return {
+        'precision_macro': make_scorer(precision_score, average='macro', zero_division=0),
+        'recall_macro': make_scorer(recall_score, average='macro', zero_division=0),
+        'f1_weighted': 'f1_weighted',
+        'matthews_corrcoef': make_scorer(matthews_corrcoef),
+    }
+
+
+def get_multiclass_metrics_from_scores(scores):
+    """Summarize multiclass-only metrics from cross-validation scores."""
+    precision_macro = round(np.mean(scores['test_precision_macro']), 3)
+    precision_macro_std = round(np.std(scores['test_precision_macro']), 3)
+
+    recall_macro = round(np.mean(scores['test_recall_macro']), 3)
+    recall_macro_std = round(np.std(scores['test_recall_macro']), 3)
+
+    f1_weighted = round(np.mean(scores['test_f1_weighted']), 3)
+    f1_weighted_std = round(np.std(scores['test_f1_weighted']), 3)
+
+    matthews_corrcoef = round(np.mean(scores['test_matthews_corrcoef']), 3)
+    matthews_corrcoef_std = round(np.std(scores['test_matthews_corrcoef']), 3)
+
+    return (
+        precision_macro,
+        precision_macro_std,
+        recall_macro,
+        recall_macro_std,
+        f1_weighted,
+        f1_weighted_std,
+        matthews_corrcoef,
+        matthews_corrcoef_std,
+    )
+
+
+def calculate_result_score(result):
+    """Compute the composite score used to compare results."""
+    metrics = [
+        result.balanced_accuracy,
+        result.f1_score,
+        result.roc_auc_score,
+        result.g_mean_score,
+        result.cohen_kappa_score,
+    ]
+
+    if result.problem_type == "multiclass":
+        multiclass_metrics = [
+            result.multiclass_precision_macro,
+            result.multiclass_recall_macro,
+            result.multiclass_f1_weighted,
+            result.multiclass_matthews_corrcoef,
+        ]
+        metrics.extend([metric for metric in multiclass_metrics if pd.notna(metric)])
+
+    return round(float(np.mean(metrics)), 3)
+
+
+
+def get_results_columns():
+    """Return the stored-results column layout."""
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "multiclass precision macro",
+        "multiclass precision macro std",
+        "multiclass recall macro",
+        "multiclass recall macro std",
+        "multiclass f1 weighted",
+        "multiclass f1 weighted std",
+        "multiclass matthews corrcoef",
+        "multiclass matthews corrcoef std",
+        "total elapsed time",
+    ]
+
+
+def get_full_results_columns():
+    """Return the full-results column layout."""
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "multiclass precision macro",
+        "multiclass precision macro std",
+        "multiclass recall macro",
+        "multiclass recall macro std",
+        "multiclass f1 weighted",
+        "multiclass f1 weighted std",
+        "multiclass matthews corrcoef",
+        "multiclass matthews corrcoef std",
+        "final score",
+    ]
 
 
 def read_file(path):
@@ -557,6 +591,7 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
     
     for classifier in array_classifiers:
         start_time = time.time()
+        print("Evaluating with balancing:", balancing, "and classifier:", classifier.__class__.__name__)
         
         model = make_pipeline(
             balancing_technique,
@@ -696,7 +731,6 @@ def write_characteristics(df_characteristics, best_result, result_updated, probl
     return True   
 
 
-
 #writes if best
 def write_results(best_result, elapsed_time):
     """Persist the best overall result if it improves the stored record."""
@@ -741,8 +775,25 @@ def write_results(best_result, elapsed_time):
         df_kb_r2 = df_kb_r.loc[df_kb_r['dataset'] == best_result.dataset_name]
         
         if not df_kb_r2.empty :
-            
-            previous_value = round(np.mean([df_kb_r2['balanced accuracy'], df_kb_r2['f1 score'], df_kb_r2['roc auc'], df_kb_r2['geometric mean'], df_kb_r2['cohen kappa']]), 3)
+            row = df_kb_r2.iloc[0]
+            previous_metrics = [
+                row['balanced accuracy'],
+                row['f1 score'],
+                row['roc auc'],
+                row['geometric mean'],
+                row['cohen kappa'],
+            ]
+
+            if best_result.problem_type == "multiclass":
+                previous_metrics.extend([
+                    row['multiclass precision macro'],
+                    row['multiclass recall macro'],
+                    row['multiclass f1 weighted'],
+                    row['multiclass matthews corrcoef'],
+                ])
+
+            previous_metrics = [metric for metric in previous_metrics if pd.notna(metric)]
+            previous_value = round(float(np.mean(previous_metrics)), 3)
             
             if current_value > previous_value:
                 
@@ -900,29 +951,6 @@ def write_full_results(resultsList, dataset_name):
     return True
 
 
-def resolve_multiclass_dataset_path(dataset_name):
-    """Resolve a dataset name to a CSV file inside input/multiclass."""
-    if not dataset_name:
-        raise ValueError("dataset_name is required")
-
-    dataset_file = dataset_name if dataset_name.endswith(".csv") else dataset_name + ".csv"
-    dataset_path = os.path.join(application_path, "input", "multiclass", dataset_file)
-
-    if not os.path.exists(dataset_path):
-        raise FileNotFoundError(f"Dataset not found: {dataset_path}")
-
-    return dataset_path
-
-
-def main(dataset_name):
-    """Run execute_ml_test for a dataset in input/multiclass."""
-    dataset_path = resolve_multiclass_dataset_path(dataset_name)
-    #return execute_byCharacteristics(dataset_path, None)
-    #return execute_ml_test(dataset_path, None)
-    return execute_ml(dataset_path, None)
-
-
-
 #by Euclidean Distance
 def get_best_results_by_characteristics(dataset_name, problem_type):
     """Find the most similar past datasets and reuse their best pipelines."""
@@ -1010,7 +1038,66 @@ class Results(object):
         self.multiclass_matthews_corrcoef = multiclass_matthews_corrcoef
         self.multiclass_matthews_corrcoef_std = multiclass_matthews_corrcoef_std
 
+def mcTest(dataset_name):
+    """Run execute_ml_test for a dataset in input/multiclass."""
+    dataset_path = resolve_multiclass_dataset_path(dataset_name)
+    #return execute_byCharacteristics(dataset_path, None)
+    #return execute_ml_test(dataset_path, None)
+    return execute_ml(dataset_path, None)
+
+
+def run_execute_ml_for_all_multiclass_datasets():
+    """Run execute_ml for every CSV dataset found in input/multiclass."""
+    datasets_dir = os.path.join(application_path, "input", "multiclass")
+
+    if not os.path.isdir(datasets_dir):
+        raise FileNotFoundError(f"Directory not found: {datasets_dir}")
+
+    dataset_files = sorted([
+        file_name for file_name in os.listdir(datasets_dir)
+        if file_name.lower().endswith(".csv") and os.path.isfile(os.path.join(datasets_dir, file_name))
+    ])
+
+    if not dataset_files:
+        print("No CSV datasets found in input/multiclass.")
+        return {
+            "processed": 0,
+            "success": [],
+            "failed": [],
+        }
+
+    success = []
+    failed = []
+
+    print(f"Found {len(dataset_files)} multiclass datasets.")
+
+    for index, dataset_file in enumerate(dataset_files, start=1):
+        dataset_path = os.path.join(datasets_dir, dataset_file)
+        print(f"\n[{index}/{len(dataset_files)}] Running: {dataset_file}")
+
+        result = execute_ml(dataset_path, None)
+        if result:
+            success.append(dataset_file)
+        else:
+            failed.append(dataset_file)
+
+    print("\nBatch run finished.")
+    print(f"Successful: {len(success)}")
+    print(f"Failed    : {len(failed)}")
+
+    if failed:
+        print("Failed datasets:")
+        for dataset_file in failed:
+            print("-", dataset_file)
+
+    return {
+        "processed": len(dataset_files),
+        "success": success,
+        "failed": failed,
+    }
+
+
 
 if __name__ == "__main__":
     dataset_name = "car_evaluation.csv"
-    main(dataset_name)
+    mcTest(dataset_name)
