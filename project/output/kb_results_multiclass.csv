@@ -1,2 +1,2 @@
 dataset,pre processing,algorithm,time,balanced accuracy,balanced accuracy std,f1 score,f1 score std,roc auc,roc auc std,geometric mean,geometric mean std,cohen kappa,cohen kappa std,multiclass precision macro,multiclass precision macro std,multiclass recall macro,multiclass recall macro std,multiclass f1 weighted,multiclass f1 weighted std,multiclass matthews corrcoef,multiclass matthews corrcoef std,total elapsed time
-car_evaluation.csv,RandomOverSampler,XGBClassifier,0.417,0.991,0.013,0.986,0.014,1.0,0.0,0.991,0.013,0.987,0.01,0.982,0.018,0.991,0.013,0.994,0.005,0.988,0.01,0:01:05
+car_evaluation.csv,TomekLinks,LGBMClassifier,23.826,0.992,0.014,0.989,0.016,1.0,0.0,0.992,0.014,0.99,0.011,0.988,0.02,0.992,0.014,0.996,0.005,0.99,0.011,0:10:22

@@ -27,6 +27,63 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+def execute_ml(dataset_location, id_openml):
+    """Run the full workflow and persist the best result."""
+    
+    try:
+        if dataset_location:
+            df, dataset_name = read_file(dataset_location)
+        elif id_openml:
+            df, dataset_name = read_file_openml(id_openml)
+        else:
+            return False
+        
+        start_time = time.time()
+        
+        X, y, df_characteristics = features_labels(df, dataset_name)
+        problem_type = get_problem_type(y)
+        
+        # array_balancing = ["(no pre processing)"]
+        # array_balancing = [
+        #     "(no pre processing)", 
+        #     "ClusterCentroids", "CondensedNearestNeighbour", "EditedNearestNeighbours", "RepeatedEditedNearestNeighbours", "AllKNN", "InstanceHardnessThreshold", "NearMiss", "NeighbourhoodCleaningRule", "OneSidedSelection", "RandomUnderSampler", "TomekLinks",
+        #     "RandomOverSampler", "SMOTE", "ADASYN", "BorderlineSMOTE", "KMeansSMOTE", "SVMSMOTE",
+        #     "SMOTEENN", "SMOTETomek"
+        # ]
+        array_balancing = [
+            "RandomOverSampler"#, "SMOTE", "SVMSMOTE",
+            #"SMOTETomek", "ADASYN", "EditedNearestNeighbours",
+            #"RandomUnderSampler", "TomekLinks"
+        ]
+        
+        resultsList = []
+        i = 1
+        for balancing in array_balancing:
+            try:
+                print("loading: ", i, " of ", len(array_balancing))
+                i += 1
+                balancing_technique = pre_processing(balancing) 
+                resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
+            except Exception:
+                traceback.print_exc()
+        
+        finish_time = (round(time.time() - start_time,3))
+        
+        best_result = find_best_result(resultsList)
+        
+        result_updated = write_results(best_result, finish_time)
+        
+        write_full_results(resultsList, dataset_name)
+        
+        write_characteristics(df_characteristics, best_result, result_updated, problem_type)
+        
+        return dataset_name
+    
+    except Exception:
+        traceback.print_exc()
+        return False
+
+
 def get_problem_type(y):
     """Return the dataset target type as binary or multiclass."""
     target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
@@ -48,19 +105,32 @@ def get_target_class_count(y):
 
 def build_classifiers(problem_type, n_classes):
     """Build the classifier list for the detected problem type."""
-    classifiers = []
+    classifiers = [
+        #LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
+        #GaussianNB(),
+        #SVC(random_state=42, class_weight='balanced', probability=True),
+        #KNeighborsClassifier(),
+        #RandomForestClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
+        #ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
+        AdaBoostClassifier(random_state=42),
+        #BaggingClassifier(random_state=42, n_jobs=-1),
+        #GradientBoostingClassifier(random_state=42),
+        #EasyEnsembleClassifier(random_state=42, n_jobs=-1),
+        #RUSBoostClassifier(random_state=42),
+        #BalancedBaggingClassifier(random_state=42, n_jobs=-1),
+        #BalancedRandomForestClassifier(random_state=42, n_jobs=-1),
+    ]
 
     if problem_type == "multiclass":
-        classifiers.append(
-            LGBMClassifier(
-                random_state=42,
-                objective='multiclass',
-                num_class=n_classes,
-                class_weight='balanced',
-                n_jobs=-1,
-            )
-        )
-        classifiers.append(
+        classifiers.extend([
+            #LGBMClassifier(
+            #    random_state=42,
+            #    objective='multiclass',
+            #    num_class=n_classes,
+            #    class_weight='balanced',
+            #    force_col_wise=True,
+             #   n_jobs=-1,
+            #),
             XGBClassifier(
                 random_state=42,
                 use_label_encoder=False,
@@ -68,28 +138,25 @@ def build_classifiers(problem_type, n_classes):
                 num_class=n_classes,
                 eval_metric='mlogloss',
                 n_jobs=-1,
-            )
-        )
+            ),
+        ])
     else:
-        classifiers.append(
+        classifiers.extend([
             LGBMClassifier(
                 random_state=42,
                 objective='binary',
                 class_weight='balanced',
+                force_col_wise=True,
                 n_jobs=-1,
-            )
-        )
-        classifiers.append(
+            ),
             XGBClassifier(
                 random_state=42,
                 use_label_encoder=False,
                 objective='binary:logistic',
                 eval_metric='logloss',
                 n_jobs=-1,
-            )
-        )
-
-    classifiers.append(GradientBoostingClassifier(random_state=42))
+            ),
+        ])
 
     return classifiers
 
@@ -243,63 +310,6 @@ def get_full_results_columns():
         "multiclass matthews corrcoef std",
         "final score",
     ]
-
-
-def execute_ml(dataset_location, id_openml):
-    """Run the full workflow and persist the best result."""
-    
-    try:
-        if dataset_location:
-            df, dataset_name = read_file(dataset_location)
-        elif id_openml:
-            df, dataset_name = read_file_openml(id_openml)
-        else:
-            return False
-        
-        start_time = time.time()
-        
-        X, y, df_characteristics = features_labels(df, dataset_name)
-        problem_type = get_problem_type(y)
-        
-        # array_balancing = ["(no pre processing)"]
-        # array_balancing = [
-        #     "(no pre processing)", 
-        #     "ClusterCentroids", "CondensedNearestNeighbour", "EditedNearestNeighbours", "RepeatedEditedNearestNeighbours", "AllKNN", "InstanceHardnessThreshold", "NearMiss", "NeighbourhoodCleaningRule", "OneSidedSelection", "RandomUnderSampler", "TomekLinks",
-        #     "RandomOverSampler", "SMOTE", "ADASYN", "BorderlineSMOTE", "KMeansSMOTE", "SVMSMOTE",
-        #     "SMOTEENN", "SMOTETomek"
-        # ]
-        array_balancing = [
-            "RandomOverSampler", "SMOTE", "SVMSMOTE",
-            "SMOTETomek"
-        ]
-        
-        resultsList = []
-        i = 1
-        for balancing in array_balancing:
-            try:
-                print("loading: ", i, " of ", len(array_balancing))
-                i += 1
-                balancing_technique = pre_processing(balancing) 
-                resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
-            except Exception:
-                traceback.print_exc()
-        
-        finish_time = (round(time.time() - start_time,3))
-        
-        best_result = find_best_result(resultsList)
-        
-        result_updated = write_results(best_result, finish_time)
-        
-        write_full_results(resultsList, dataset_name)
-        
-        write_characteristics(df_characteristics, best_result, result_updated, problem_type)
-        
-        return dataset_name
-    
-    except Exception:
-        traceback.print_exc()
-        return False
-
 
 
 #  TEST VERSION - execute algorithms without pre processing nor writting to any KB file
@@ -495,7 +505,7 @@ def pre_processing(balancing):
         balancing_technique = SMOTE(random_state=42, n_jobs=-1) #sampling_strategy=0.5
     
     if balancing == "ADASYN":
-        balancing_technique = ADASYN(random_state=42, n_jobs=-1)
+        balancing_technique = ADASYN(random_state=42)
     
     if balancing == "BorderlineSMOTE":
         balancing_technique = BorderlineSMOTE(random_state=42, n_jobs=-1)
@@ -517,7 +527,7 @@ def pre_processing(balancing):
         balancing_technique = KMeansSMOTE(random_state=42, n_jobs=-1) #cluster_balance_threshold=n_clusters
     
     if balancing == "SVMSMOTE":
-        balancing_technique = SVMSMOTE(random_state=42, n_jobs=-1)
+        balancing_technique = SVMSMOTE(random_state=42)
     
     
     # -- Combination of over- and under-sampling methods --
