@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import datetime
+import re
 from decimal import Decimal
 import pandas as pd
 import numpy as np
@@ -21,6 +22,7 @@ from xgboost import XGBClassifier
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, AdaBoostClassifier, BaggingClassifier, GradientBoostingClassifier
 from imblearn.ensemble import EasyEnsembleClassifier, RUSBoostClassifier, BalancedBaggingClassifier, BalancedRandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, make_scorer, cohen_kappa_score, precision_score, recall_score, matthews_corrcoef
+from sklearn.preprocessing import LabelEncoder
 from imblearn.metrics import geometric_mean_score
 import traceback
 import warnings
@@ -51,7 +53,7 @@ def execute_ml(dataset_location, id_openml):
         #     "SMOTEENN", "SMOTETomek"
         # ]
         array_balancing = [
-            "RandomOverSampler", "SMOTE", "SVMSMOTE",
+            "RandomOverSampler", "SMOTE",
             "SMOTETomek", "ADASYN", "EditedNearestNeighbours",
             "RandomUnderSampler", "TomekLinks"
         ]
@@ -68,6 +70,10 @@ def execute_ml(dataset_location, id_openml):
                 traceback.print_exc()
         
         finish_time = (round(time.time() - start_time,3))
+
+        if not resultsList:
+            print("No valid model result was produced for this dataset.")
+            return False
         
         best_result = find_best_result(resultsList)
         
@@ -117,6 +123,10 @@ def execute_ml_test(dataset_location, id_openml):
         #  TEST VERSION
         
         finish_time = (round(time.time() - start_time,3))
+
+        if not resultsList:
+            print("No valid model result was produced for this dataset.")
+            return False
         
         best_result = find_best_result(resultsList)
 
@@ -282,6 +292,32 @@ def load_kb_dataframe(base_name, problem_type, columns=None):
         return pd.DataFrame(columns=columns)
 
     return pd.DataFrame()
+
+def sanitize_feature_names(X):
+    """Normalize feature names to JSON-safe alphanumeric/underscore labels."""
+    rename_map = {}
+    used_names = set()
+
+    for original_name in X.columns:
+        cleaned_name = re.sub(r"[^0-9a-zA-Z_]", "_", str(original_name))
+        cleaned_name = cleaned_name.strip("_")
+
+        if not cleaned_name:
+            cleaned_name = "feature"
+
+        if cleaned_name[0].isdigit():
+            cleaned_name = f"f_{cleaned_name}"
+
+        unique_name = cleaned_name
+        suffix = 1
+        while unique_name in used_names:
+            suffix += 1
+            unique_name = f"{cleaned_name}_{suffix}"
+
+        used_names.add(unique_name)
+        rename_map[original_name] = unique_name
+
+    return X.rename(columns=rename_map)
 
 
 def get_scoring(problem_type):
@@ -462,6 +498,8 @@ def features_labels(df, dataset_name):
           groups=["complexity", "concept", "general", "itemset", "landmarking", "model-based", "statistical"], 
           summary=["mean", "sd", "kurtosis","skewness"])
 
+    #y_array = np.asarray(y).ravel()
+    #mfe.fit(X.values, y_array)
     mfe.fit(X.values, y.values)
     ft = mfe.extract(suppress_warnings=True)
     
@@ -481,6 +519,8 @@ def features_labels(df, dataset_name):
     
     if encoded_columns:
         X = pd.get_dummies(X, columns=X[encoded_columns].columns, drop_first=True)
+
+    X = sanitize_feature_names(X)
 
     if y.dtype == object or y.dtype.name == 'category' or y.dtype == bool or y.dtype == str:
         y = pd.Series(pd.factorize(y)[0], name=y.name)
@@ -536,7 +576,7 @@ def pre_processing(balancing):
         balancing_technique = RandomOverSampler(random_state=42) #sampling_strategy=0.5
     
     if balancing == "SMOTE":
-        balancing_technique = SMOTE(random_state=42, n_jobs=-1) #sampling_strategy=0.5
+        balancing_technique = SMOTE(random_state=42) #sampling_strategy=0.5
     
     if balancing == "ADASYN":
         balancing_technique = ADASYN(random_state=42)
@@ -602,7 +642,13 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
         
         scoring = get_scoring(problem_type)
         
-        scores = cross_validate(model, X, y.values.ravel(), scoring=scoring,cv=cv, n_jobs=-1) #, return_train_score=True
+        # Convert categorical labels to integer scalars
+        #le = LabelEncoder()
+        #y_encoded = le.fit_transform(y.values.ravel())
+        
+        #scores = cross_validate(model, X, y_encoded, scoring=scoring, cv=cv, n_jobs=-1) #, return_train_score=True
+        
+        scores = cross_validate(model, X, y.values.ravel(), scoring=scoring,cv=cv, n_jobs=-1)
         
         finish_time = round(time.time() - start_time,3)
         
@@ -1064,14 +1110,28 @@ def run_execute_ml_for_all_multiclass_datasets():
             "processed": 0,
             "success": [],
             "failed": [],
+            "skipped": [],
         }
+
+    kb_results_path = get_kb_file_path("kb_results", "multiclass")
+    processed_datasets = set()
+    if os.path.exists(kb_results_path):
+        df_kb_results = pd.read_csv(kb_results_path, sep=",")
+        if "dataset" in df_kb_results.columns:
+            processed_datasets = set(df_kb_results["dataset"].dropna().astype(str).tolist())
 
     success = []
     failed = []
+    skipped = []
 
     print(f"Found {len(dataset_files)} multiclass datasets.")
 
     for index, dataset_file in enumerate(dataset_files, start=1):
+        if dataset_file in processed_datasets:
+            print(f"\n[{index}/{len(dataset_files)}] Skipping (already in kb_results_multiclass): {dataset_file}")
+            skipped.append(dataset_file)
+            continue
+
         dataset_path = os.path.join(datasets_dir, dataset_file)
         print(f"\n[{index}/{len(dataset_files)}] Running: {dataset_file}")
 
@@ -1084,6 +1144,7 @@ def run_execute_ml_for_all_multiclass_datasets():
     print("\nBatch run finished.")
     print(f"Successful: {len(success)}")
     print(f"Failed    : {len(failed)}")
+    print(f"Skipped   : {len(skipped)}")
 
     if failed:
         print("Failed datasets:")
@@ -1091,13 +1152,13 @@ def run_execute_ml_for_all_multiclass_datasets():
             print("-", dataset_file)
 
     return {
-        "processed": len(dataset_files),
+        "processed": len(success) + len(failed),
         "success": success,
         "failed": failed,
+        "skipped": skipped,
     }
 
 
 
 if __name__ == "__main__":
-    dataset_name = "car_evaluation.csv"
-    mcTest(dataset_name)
+    run_execute_ml_for_all_multiclass_datasets()

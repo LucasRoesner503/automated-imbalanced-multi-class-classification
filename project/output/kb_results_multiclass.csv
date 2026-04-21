@@ -1,2 +1,6 @@
 dataset,pre processing,algorithm,time,balanced accuracy,balanced accuracy std,f1 score,f1 score std,roc auc,roc auc std,geometric mean,geometric mean std,cohen kappa,cohen kappa std,multiclass precision macro,multiclass precision macro std,multiclass recall macro,multiclass recall macro std,multiclass f1 weighted,multiclass f1 weighted std,multiclass matthews corrcoef,multiclass matthews corrcoef std,total elapsed time
 car_evaluation.csv,TomekLinks,LGBMClassifier,24.045,0.992,0.014,0.989,0.016,1.0,0.0,0.992,0.014,0.99,0.011,0.988,0.02,0.992,0.014,0.996,0.005,0.99,0.011,0:04:08
+Cervical_Cancer_Risk_Factors_clean.csv,SMOTETomek,ExtraTreesClassifier,1.272,0.238,0.048,0.239,0.055,0.596,0.115,0.0,0.0,0.121,0.097,0.255,0.084,0.238,0.048,0.824,0.02,0.131,0.104,0:05:20
+Fetal_cardiotocography_dataset.csv,RandomOverSampler,LGBMClassifier,25.876,0.981,0.015,0.985,0.012,0.997,0.005,0.981,0.016,0.974,0.02,0.989,0.011,0.981,0.015,0.99,0.007,0.974,0.02,0:06:48
+allbp.csv,RandomOverSampler,XGBClassifier,1.022,0.793,0.157,0.763,0.147,0.976,0.046,0.612,0.406,0.694,0.1,0.749,0.15,0.793,0.157,0.974,0.008,0.697,0.1,0:07:34
+allhyper.csv,ADASYN,GradientBoostingClassifier,18.432,0.795,0.169,0.728,0.139,0.991,0.011,0.443,0.475,0.765,0.072,0.698,0.137,0.795,0.169,0.987,0.004,0.77,0.072,0:24:49
