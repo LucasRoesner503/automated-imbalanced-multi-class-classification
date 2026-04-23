@@ -45,7 +45,6 @@ def execute_ml(dataset_location, id_openml):
         X, y, df_characteristics = features_labels(df, dataset_name)
         problem_type = get_problem_type(y)
         
-        # array_balancing = ["(no pre processing)"]
         # array_balancing = [
         #     "(no pre processing)", 
         #     "ClusterCentroids", "CondensedNearestNeighbour", "EditedNearestNeighbours", "RepeatedEditedNearestNeighbours", "AllKNN", "InstanceHardnessThreshold", "NearMiss", "NeighbourhoodCleaningRule", "OneSidedSelection", "RandomUnderSampler", "TomekLinks",
@@ -174,12 +173,12 @@ def execute_byCharacteristics(dataset_location, id_openml):
 def build_classifiers(problem_type, n_classes):
     """Build the classifier list for the detected problem type."""
     classifiers = [
-        LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
-        GaussianNB(),
-        SVC(random_state=42, class_weight='balanced', probability=True),
-        KNeighborsClassifier(),
+        #LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
+        #GaussianNB(),
+        #SVC(random_state=42, class_weight='balanced', probability=True),
+        #KNeighborsClassifier(),
         RandomForestClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
-        ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
+        #ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
         AdaBoostClassifier(random_state=42),
         BaggingClassifier(random_state=42, n_jobs=-1),
         GradientBoostingClassifier(random_state=42),
@@ -189,42 +188,42 @@ def build_classifiers(problem_type, n_classes):
         BalancedRandomForestClassifier(random_state=42, n_jobs=-1),
     ]
 
-    if problem_type == "multiclass":
-        classifiers.extend([
-            LGBMClassifier(
-                random_state=42,
-                objective='multiclass',
-                num_class=n_classes,
-                class_weight='balanced',
-                force_col_wise=True,
-                n_jobs=-1,
-            ),
-            XGBClassifier(
-                random_state=42,
-                use_label_encoder=False,
-                objective='multi:softprob',
-                num_class=n_classes,
-                eval_metric='mlogloss',
-                n_jobs=-1,
-            ),
-        ])
-    else:
-        classifiers.extend([
-            LGBMClassifier(
-                random_state=42,
-                objective='binary',
-                class_weight='balanced',
-                force_col_wise=True,
-                n_jobs=-1,
-            ),
-            XGBClassifier(
-                random_state=42,
-                use_label_encoder=False,
-                objective='binary:logistic',
-                eval_metric='logloss',
-                n_jobs=-1,
-            ),
-        ])
+    #if problem_type == "multiclass":
+    #    classifiers.extend([
+    #        LGBMClassifier(
+    #            random_state=42,
+    #            objective='multiclass',
+    #            num_class=n_classes,
+    #            class_weight='balanced',
+    #            force_col_wise=True,
+    #            n_jobs=-1,
+    #        ),
+    #        XGBClassifier(
+    #            random_state=42,
+    #            use_label_encoder=False,
+    #            objective='multi:softprob',
+    #            num_class=n_classes,
+    #            eval_metric='mlogloss',
+    #            n_jobs=-1,
+    #        ),
+    #    ])
+    #else:
+    #    classifiers.extend([
+    #        LGBMClassifier(
+    #            random_state=42,
+    #            objective='binary',
+    #            class_weight='balanced',
+    #            force_col_wise=True,
+    #            n_jobs=-1,
+    #        ),
+    #        XGBClassifier(
+    #            random_state=42,
+    #            use_label_encoder=False,
+    #            objective='binary:logistic',
+    #            eval_metric='logloss',
+    #            n_jobs=-1,
+    #        ),
+    #    ])
 
     return classifiers
 
@@ -257,7 +256,7 @@ elif __file__:
 
 
 def resolve_multiclass_dataset_path(dataset_name):
-    """Resolve a dataset name to a CSV file inside input/multiclass."""
+    """Resolve a dataset name to read datasets from the input/multiclass folder."""
     if not dataset_name:
         raise ValueError("dataset_name is required")
 
@@ -376,87 +375,6 @@ def get_multiclass_metrics_from_scores(scores):
         matthews_corrcoef,
         matthews_corrcoef_std,
     )
-
-
-def calculate_result_score(result):
-    """Compute the composite score used to compare results."""
-    metrics = [
-        result.balanced_accuracy,
-        result.f1_score,
-        result.roc_auc_score,
-        result.g_mean_score,
-        result.cohen_kappa_score,
-    ]
-
-    if result.problem_type == "multiclass":
-        multiclass_metrics = [
-            result.multiclass_precision_macro,
-            result.multiclass_recall_macro,
-            result.multiclass_f1_weighted,
-            result.multiclass_matthews_corrcoef,
-        ]
-        metrics.extend([metric for metric in multiclass_metrics if pd.notna(metric)])
-
-    return round(float(np.mean(metrics)), 3)
-
-
-
-def get_results_columns():
-    """Return the stored-results column layout."""
-    return [
-        "dataset",
-        "pre processing",
-        "algorithm",
-        "time",
-        "balanced accuracy",
-        "balanced accuracy std",
-        "f1 score",
-        "f1 score std",
-        "roc auc",
-        "roc auc std",
-        "geometric mean",
-        "geometric mean std",
-        "cohen kappa",
-        "cohen kappa std",
-        "multiclass precision macro",
-        "multiclass precision macro std",
-        "multiclass recall macro",
-        "multiclass recall macro std",
-        "multiclass f1 weighted",
-        "multiclass f1 weighted std",
-        "multiclass matthews corrcoef",
-        "multiclass matthews corrcoef std",
-        "total elapsed time",
-    ]
-
-
-def get_full_results_columns():
-    """Return the full-results column layout."""
-    return [
-        "dataset",
-        "pre processing",
-        "algorithm",
-        "time",
-        "balanced accuracy",
-        "balanced accuracy std",
-        "f1 score",
-        "f1 score std",
-        "roc auc",
-        "roc auc std",
-        "geometric mean",
-        "geometric mean std",
-        "cohen kappa",
-        "cohen kappa std",
-        "multiclass precision macro",
-        "multiclass precision macro std",
-        "multiclass recall macro",
-        "multiclass recall macro std",
-        "multiclass f1 weighted",
-        "multiclass f1 weighted std",
-        "multiclass matthews corrcoef",
-        "multiclass matthews corrcoef std",
-        "final score",
-    ]
 
 
 def read_file(path):
@@ -799,47 +717,13 @@ def write_results(best_result, elapsed_time):
         
         df_kb_r = load_kb_dataframe("kb_results", best_result.problem_type, columns=get_results_columns())
 
-        if best_result.problem_type == "multiclass":
-            multiclass_precision_macro = best_result.multiclass_precision_macro
-            multiclass_precision_macro_std = best_result.multiclass_precision_macro_std
-            multiclass_recall_macro = best_result.multiclass_recall_macro
-            multiclass_recall_macro_std = best_result.multiclass_recall_macro_std
-            multiclass_f1_weighted = best_result.multiclass_f1_weighted
-            multiclass_f1_weighted_std = best_result.multiclass_f1_weighted_std
-            multiclass_matthews_corrcoef = best_result.multiclass_matthews_corrcoef
-            multiclass_matthews_corrcoef_std = best_result.multiclass_matthews_corrcoef_std
-        else:
-            multiclass_precision_macro = np.nan
-            multiclass_precision_macro_std = np.nan
-            multiclass_recall_macro = np.nan
-            multiclass_recall_macro_std = np.nan
-            multiclass_f1_weighted = np.nan
-            multiclass_f1_weighted_std = np.nan
-            multiclass_matthews_corrcoef = np.nan
-            multiclass_matthews_corrcoef_std = np.nan
+        metric_payload = get_kb_metric_payload(best_result)
         
         df_kb_r2 = df_kb_r.loc[df_kb_r['dataset'] == best_result.dataset_name]
         
         if not df_kb_r2.empty :
             row = df_kb_r2.iloc[0]
-            previous_metrics = [
-                row['balanced accuracy'],
-                row['f1 score'],
-                row['roc auc'],
-                row['geometric mean'],
-                row['cohen kappa'],
-            ]
-
-            if best_result.problem_type == "multiclass":
-                previous_metrics.extend([
-                    row['multiclass precision macro'],
-                    row['multiclass recall macro'],
-                    row['multiclass f1 weighted'],
-                    row['multiclass matthews corrcoef'],
-                ])
-
-            previous_metrics = [metric for metric in previous_metrics if pd.notna(metric)]
-            previous_value = round(float(np.mean(previous_metrics)), 3)
+            previous_value = calculate_kb_row_score(row, best_result.problem_type)
             
             if current_value > previous_value:
                 
@@ -847,24 +731,8 @@ def write_results(best_result, elapsed_time):
                 df_kb_r.at[index, 'pre processing'] = best_result.balancing
                 df_kb_r.at[index, 'algorithm'] = best_result.algorithm
                 df_kb_r.at[index, 'time'] = best_result.time
-                df_kb_r.at[index, 'balanced accuracy'] = best_result.balanced_accuracy
-                df_kb_r.at[index, 'balanced accuracy std'] = best_result.balanced_accuracy_std
-                df_kb_r.at[index, 'f1 score'] = best_result.f1_score
-                df_kb_r.at[index, 'f1 score std'] = best_result.f1_score_std
-                df_kb_r.at[index, 'roc auc'] = best_result.roc_auc_score
-                df_kb_r.at[index, 'roc auc std'] = best_result.roc_auc_score_std
-                df_kb_r.at[index, 'geometric mean'] = best_result.g_mean_score
-                df_kb_r.at[index, 'geometric mean std'] = best_result.g_mean_score_std
-                df_kb_r.at[index, 'cohen kappa'] = best_result.cohen_kappa_score
-                df_kb_r.at[index, 'cohen kappa std'] = best_result.cohen_kappa_score_std
-                df_kb_r.at[index, 'multiclass precision macro'] = multiclass_precision_macro
-                df_kb_r.at[index, 'multiclass precision macro std'] = multiclass_precision_macro_std
-                df_kb_r.at[index, 'multiclass recall macro'] = multiclass_recall_macro
-                df_kb_r.at[index, 'multiclass recall macro std'] = multiclass_recall_macro_std
-                df_kb_r.at[index, 'multiclass f1 weighted'] = multiclass_f1_weighted
-                df_kb_r.at[index, 'multiclass f1 weighted std'] = multiclass_f1_weighted_std
-                df_kb_r.at[index, 'multiclass matthews corrcoef'] = multiclass_matthews_corrcoef
-                df_kb_r.at[index, 'multiclass matthews corrcoef std'] = multiclass_matthews_corrcoef_std
+                for column_name, column_value in metric_payload.items():
+                    df_kb_r.at[index, column_name] = column_value
                 df_kb_r.at[index, 'total elapsed time'] = elapsed_time
                 
                 df_kb_r.to_csv(get_kb_file_path("kb_results", best_result.problem_type), sep=",", index=False)
@@ -878,31 +746,7 @@ def write_results(best_result, elapsed_time):
                 
         else:
             
-            df_kb_r.loc[len(df_kb_r.index)] = [
-                best_result.dataset_name,
-                best_result.balancing,
-                best_result.algorithm,
-                best_result.time,
-                best_result.balanced_accuracy,
-                best_result.balanced_accuracy_std,
-                best_result.f1_score,
-                best_result.f1_score_std,
-                best_result.roc_auc_score,
-                best_result.roc_auc_score_std,
-                best_result.g_mean_score,
-                best_result.g_mean_score_std,
-                best_result.cohen_kappa_score,
-                best_result.cohen_kappa_score_std,
-                multiclass_precision_macro,
-                multiclass_precision_macro_std,
-                multiclass_recall_macro,
-                multiclass_recall_macro_std,
-                multiclass_f1_weighted,
-                multiclass_f1_weighted_std,
-                multiclass_matthews_corrcoef,
-                multiclass_matthews_corrcoef_std,
-                elapsed_time
-            ]
+            df_kb_r.loc[len(df_kb_r.index)] = build_kb_row_values(best_result, metric_payload, elapsed_time)
 
             df_kb_r.to_csv(get_kb_file_path("kb_results", best_result.problem_type), sep=",", index=False)
             
@@ -935,51 +779,12 @@ def write_full_results(resultsList, dataset_name):
         if df_kb_r2.empty :
         
             for result in resultsList:
-
-                if result.problem_type == "multiclass":
-                    multiclass_precision_macro = result.multiclass_precision_macro
-                    multiclass_precision_macro_std = result.multiclass_precision_macro_std
-                    multiclass_recall_macro = result.multiclass_recall_macro
-                    multiclass_recall_macro_std = result.multiclass_recall_macro_std
-                    multiclass_f1_weighted = result.multiclass_f1_weighted
-                    multiclass_f1_weighted_std = result.multiclass_f1_weighted_std
-                    multiclass_matthews_corrcoef = result.multiclass_matthews_corrcoef
-                    multiclass_matthews_corrcoef_std = result.multiclass_matthews_corrcoef_std
-                else:
-                    multiclass_precision_macro = np.nan
-                    multiclass_precision_macro_std = np.nan
-                    multiclass_recall_macro = np.nan
-                    multiclass_recall_macro_std = np.nan
-                    multiclass_f1_weighted = np.nan
-                    multiclass_f1_weighted_std = np.nan
-                    multiclass_matthews_corrcoef = np.nan
-                    multiclass_matthews_corrcoef_std = np.nan
-                
-                df_kb_r.loc[len(df_kb_r.index)] = [
-                        result.dataset_name,
-                        result.balancing,
-                        result.algorithm,
-                        result.time,
-                        result.balanced_accuracy,
-                        result.balanced_accuracy_std,
-                        result.f1_score,
-                        result.f1_score_std,
-                        result.roc_auc_score,
-                        result.roc_auc_score_std,
-                        result.g_mean_score,
-                        result.g_mean_score_std,
-                        result.cohen_kappa_score,
-                        result.cohen_kappa_score_std,
-                        multiclass_precision_macro,
-                        multiclass_precision_macro_std,
-                        multiclass_recall_macro,
-                        multiclass_recall_macro_std,
-                        multiclass_f1_weighted,
-                        multiclass_f1_weighted_std,
-                        multiclass_matthews_corrcoef,
-                        multiclass_matthews_corrcoef_std,
-                        calculate_result_score(result)
-                    ]
+                metric_payload = get_kb_metric_payload(result)
+                df_kb_r.loc[len(df_kb_r.index)] = build_kb_row_values(
+                    result,
+                    metric_payload,
+                    calculate_result_score(result)
+                )
 
             df_kb_r.sort_values(by=['final score'], ascending=False, inplace=True)
 
@@ -1055,6 +860,189 @@ def display_final_results(df_dist):
     str_output += "\n"
     return str_output
 
+
+def calculate_result_score(result):
+    """Compute the composite score used to compare results."""
+    if result.problem_type == "multiclass":
+        metrics = [
+            result.multiclass_precision_macro,
+            result.multiclass_recall_macro,
+            result.multiclass_f1_weighted,
+            result.multiclass_matthews_corrcoef,
+        ]
+    else:
+        metrics = [
+            result.balanced_accuracy,
+            result.f1_score,
+            result.roc_auc_score,
+            result.g_mean_score,
+            result.cohen_kappa_score,
+        ]
+
+    metrics = [metric for metric in metrics if pd.notna(metric)]
+    if not metrics:
+        return np.nan
+
+    return round(float(np.mean(metrics)), 3)
+
+
+def calculate_kb_row_score(row, problem_type):
+    """Compute a comparable score from a stored KB row."""
+    if problem_type == "multiclass":
+        metrics = [
+            row['multiclass precision macro'],
+            row['multiclass recall macro'],
+            row['multiclass f1 weighted'],
+            row['multiclass matthews corrcoef'],
+        ]
+    else:
+        metrics = [
+            row['balanced accuracy'],
+            row['f1 score'],
+            row['roc auc'],
+            row['geometric mean'],
+            row['cohen kappa'],
+        ]
+
+    metrics = [metric for metric in metrics if pd.notna(metric)]
+    if not metrics:
+        return np.nan
+
+    return round(float(np.mean(metrics)), 3)
+
+
+def get_kb_metric_payload(result):
+    """Return metric values aligned with KB columns for binary or multiclass."""
+    if result.problem_type == "multiclass":
+        return {
+            'balanced accuracy': np.nan,
+            'balanced accuracy std': np.nan,
+            'f1 score': np.nan,
+            'f1 score std': np.nan,
+            'roc auc': np.nan,
+            'roc auc std': np.nan,
+            'geometric mean': np.nan,
+            'geometric mean std': np.nan,
+            'cohen kappa': np.nan,
+            'cohen kappa std': np.nan,
+            'multiclass precision macro': result.multiclass_precision_macro,
+            'multiclass precision macro std': result.multiclass_precision_macro_std,
+            'multiclass recall macro': result.multiclass_recall_macro,
+            'multiclass recall macro std': result.multiclass_recall_macro_std,
+            'multiclass f1 weighted': result.multiclass_f1_weighted,
+            'multiclass f1 weighted std': result.multiclass_f1_weighted_std,
+            'multiclass matthews corrcoef': result.multiclass_matthews_corrcoef,
+            'multiclass matthews corrcoef std': result.multiclass_matthews_corrcoef_std,
+        }
+
+    return {
+        'balanced accuracy': result.balanced_accuracy,
+        'balanced accuracy std': result.balanced_accuracy_std,
+        'f1 score': result.f1_score,
+        'f1 score std': result.f1_score_std,
+        'roc auc': result.roc_auc_score,
+        'roc auc std': result.roc_auc_score_std,
+        'geometric mean': result.g_mean_score,
+        'geometric mean std': result.g_mean_score_std,
+        'cohen kappa': result.cohen_kappa_score,
+        'cohen kappa std': result.cohen_kappa_score_std,
+        'multiclass precision macro': np.nan,
+        'multiclass precision macro std': np.nan,
+        'multiclass recall macro': np.nan,
+        'multiclass recall macro std': np.nan,
+        'multiclass f1 weighted': np.nan,
+        'multiclass f1 weighted std': np.nan,
+        'multiclass matthews corrcoef': np.nan,
+        'multiclass matthews corrcoef std': np.nan,
+    }
+
+
+def build_kb_row_values(result, metric_payload, tail_value):
+    """Build a row list aligned with KB results/full-results columns."""
+    return [
+        result.dataset_name,
+        result.balancing,
+        result.algorithm,
+        result.time,
+        metric_payload['balanced accuracy'],
+        metric_payload['balanced accuracy std'],
+        metric_payload['f1 score'],
+        metric_payload['f1 score std'],
+        metric_payload['roc auc'],
+        metric_payload['roc auc std'],
+        metric_payload['geometric mean'],
+        metric_payload['geometric mean std'],
+        metric_payload['cohen kappa'],
+        metric_payload['cohen kappa std'],
+        metric_payload['multiclass precision macro'],
+        metric_payload['multiclass precision macro std'],
+        metric_payload['multiclass recall macro'],
+        metric_payload['multiclass recall macro std'],
+        metric_payload['multiclass f1 weighted'],
+        metric_payload['multiclass f1 weighted std'],
+        metric_payload['multiclass matthews corrcoef'],
+        metric_payload['multiclass matthews corrcoef std'],
+        tail_value,
+    ]
+
+
+
+def get_results_columns():
+    """Return the stored-results column layout."""
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "multiclass precision macro",
+        "multiclass precision macro std",
+        "multiclass recall macro",
+        "multiclass recall macro std",
+        "multiclass f1 weighted",
+        "multiclass f1 weighted std",
+        "multiclass matthews corrcoef",
+        "multiclass matthews corrcoef std",
+        "total elapsed time",
+    ]
+
+
+def get_full_results_columns():
+    """Return the full-results column layout."""
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "multiclass precision macro",
+        "multiclass precision macro std",
+        "multiclass recall macro",
+        "multiclass recall macro std",
+        "multiclass f1 weighted",
+        "multiclass f1 weighted std",
+        "multiclass matthews corrcoef",
+        "multiclass matthews corrcoef std",
+        "final score",
+    ]
 
 class Results(object):
     """Container for one classifier evaluation result."""
