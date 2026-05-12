@@ -1,6 +1,27 @@
 dataset,pre processing,algorithm,time,balanced accuracy,balanced accuracy std,f1 score,f1 score std,roc auc,roc auc std,geometric mean,geometric mean std,cohen kappa,cohen kappa std,multiclass precision macro,multiclass precision macro std,multiclass recall macro,multiclass recall macro std,multiclass f1 weighted,multiclass f1 weighted std,multiclass matthews corrcoef,multiclass matthews corrcoef std,total elapsed time
-car_evaluation.csv,TomekLinks,LGBMClassifier,24.045,0.992,0.014,0.989,0.016,1.0,0.0,0.992,0.014,0.99,0.011,0.988,0.02,0.992,0.014,0.996,0.005,0.99,0.011,0:04:08
-Cervical_Cancer_Risk_Factors_clean.csv,SMOTETomek,ExtraTreesClassifier,1.272,0.238,0.048,0.239,0.055,0.596,0.115,0.0,0.0,0.121,0.097,0.255,0.084,0.238,0.048,0.824,0.02,0.131,0.104,0:05:20
-Fetal_cardiotocography_dataset.csv,RandomOverSampler,LGBMClassifier,25.876,0.981,0.015,0.985,0.012,0.997,0.005,0.981,0.016,0.974,0.02,0.989,0.011,0.981,0.015,0.99,0.007,0.974,0.02,0:06:48
-allbp.csv,RandomOverSampler,XGBClassifier,1.022,0.793,0.157,0.763,0.147,0.976,0.046,0.612,0.406,0.694,0.1,0.749,0.15,0.793,0.157,0.974,0.008,0.697,0.1,0:07:34
-allhyper.csv,ADASYN,GradientBoostingClassifier,18.432,0.795,0.169,0.728,0.139,0.991,0.011,0.443,0.475,0.765,0.072,0.698,0.137,0.795,0.169,0.987,0.004,0.77,0.072,0:24:49
+Cervical_Cancer_Risk_Factors_clean.csv,EditedNearestNeighbours,RandomForestClassifier,0.709,,,,,,,,,,,0.176,0.001,0.2,0.001,0.824,0.007,-0.004,0.008,0:01:53
+Fetal_cardiotocography_dataset.csv,RandomOverSampler,RandomForestClassifier,1.498,,,,,,,,,,,0.989,0.012,0.98,0.014,0.99,0.007,0.973,0.019,0:02:36
+allbp.csv,RandomOverSampler,GradientBoostingClassifier,8.287,,,,,,,,,,,0.692,0.145,0.819,0.155,0.969,0.008,0.684,0.081,0:13:08
+allhyper.csv,ADASYN,GradientBoostingClassifier,18.064,,,,,,,,,,,0.698,0.137,0.795,0.169,0.987,0.004,0.77,0.072,0:12:02
+allhypo.csv,RandomOverSampler,GradientBoostingClassifier,8.953,,,,,,,,,,,0.889,0.044,0.95,0.028,0.986,0.006,0.905,0.036,0:10:29
+allrep.csv,RandomOverSampler,GradientBoostingClassifier,14.631,,,,,,,,,,,0.793,0.106,0.836,0.102,0.986,0.007,0.795,0.101,0:03:49
+ann_thyroid.csv,RandomOverSampler,BalancedRandomForestClassifier,4.31,,,,,,,,,,,0.972,0.022,0.996,0.005,0.997,0.002,0.978,0.016,0:10:40
+car_evaluation.csv,TomekLinks,GradientBoostingClassifier,1.402,,,,,,,,,,,0.965,0.029,0.977,0.025,0.987,0.009,0.972,0.02,0:01:01
+collins.csv,RandomOverSampler,RandomForestClassifier,1.956,,,,,,,,,,,0.221,0.037,0.243,0.038,0.25,0.033,0.236,0.037,0:03:47
+connect-4_seed_4_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,ADASYN,GradientBoostingClassifier,3.46,,,,,,,,,,,0.534,0.032,0.543,0.043,0.686,0.025,0.376,0.051,0:01:34
+dionis_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,RandomForestClassifier,119.877,,,,,,,,,,,0.403,0.027,0.452,0.029,0.496,0.027,0.535,0.028,1:58:16
+energy-efficiency.csv,RandomOverSampler,RandomForestClassifier,1.058,,,,,,,,,,,0.484,0.075,0.5,0.068,0.598,0.05,0.588,0.05,0:01:19
+fabert_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,SMOTETomek,EasyEnsembleClassifier,5.388,,,,,,,,,,,0.566,0.096,0.203,0.019,0.173,0.03,0.152,0.04,0:02:04
+first-order-theorem-proving .csv,SMOTE,RandomForestClassifier,17.837,,,,,,,,,,,0.526,0.022,0.532,0.022,0.62,0.017,0.496,0.023,0:33:17
+first-order-theorem-proving_seed_2_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,RandomForestClassifier,3.585,,,,,,,,,,,0.441,0.039,0.433,0.036,0.532,0.026,0.381,0.035,0:09:17
+helena_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,BalancedRandomForestClassifier,23.276,,,,,,,,,,,0.112,0.022,0.129,0.022,0.229,0.023,0.236,0.023,0:35:39
+page-blocks.csv,RandomOverSampler,RandomForestClassifier,4.589,,,,,,,,,,,0.87,0.053,0.863,0.046,0.974,0.005,0.863,0.027,0:15:12
+page_blocks.csv,RandomOverSampler,RandomForestClassifier,4.715,,,,,,,,,,,0.87,0.053,0.863,0.046,0.974,0.005,0.863,0.027,0:11:20
+solar-flare.csv,TomekLinks,EasyEnsembleClassifier,2.181,,,,,,,,,,,0.64,0.043,0.666,0.053,0.722,0.032,0.662,0.041,0:00:53
+thyroid-ann.csv,RandomOverSampler,BalancedRandomForestClassifier,2.407,,,,,,,,,,,0.981,0.019,0.999,0.003,0.998,0.002,0.986,0.013,0:02:52
+thyroid-dis.csv,TomekLinks,GradientBoostingClassifier,3.9,,,,,,,,,,,0.592,0.061,0.445,0.042,0.681,0.023,0.436,0.042,0:03:11
+wall-robot-navigation.csv,RandomOverSampler,GradientBoostingClassifier,40.697,,,,,,,,,,,0.998,0.003,0.997,0.003,0.998,0.002,0.997,0.003,0:06:55
+wine-quality-red.csv,RandomOverSampler,BalancedRandomForestClassifier,2.19,,,,,,,,,,,0.401,0.072,0.381,0.045,0.687,0.028,0.523,0.045,0:01:57
+wine_quality_red.csv,RandomOverSampler,BalancedRandomForestClassifier,2.133,,,,,,,,,,,0.401,0.072,0.381,0.045,0.687,0.028,0.523,0.045,0:09:14
+wine_quality_white.csv,RandomOverSampler,BalancedRandomForestClassifier,7.105,,,,,,,,,,,0.552,0.056,0.443,0.039,0.69,0.018,0.54,0.027,0:11:31
+yeast.csv,TomekLinks,RandomForestClassifier,0.918,,,,,,,,,,,0.584,0.078,0.558,0.075,0.609,0.046,0.508,0.061,0:00:47

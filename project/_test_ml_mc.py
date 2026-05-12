@@ -416,9 +416,8 @@ def features_labels(df, dataset_name):
           groups=["complexity", "concept", "general", "itemset", "landmarking", "model-based", "statistical"], 
           summary=["mean", "sd", "kurtosis","skewness"])
 
-    #y_array = np.asarray(y).ravel()
-    #mfe.fit(X.values, y_array)
-    mfe.fit(X.values, y.values)
+    y_array = pd.factorize(y)[0]
+    mfe.fit(X.values, y_array)
     ft = mfe.extract(suppress_warnings=True)
     
     df_characteristics = pd.DataFrame.from_records(ft)
@@ -440,10 +439,8 @@ def features_labels(df, dataset_name):
 
     X = sanitize_feature_names(X)
 
-    if y.dtype == object or y.dtype.name == 'category' or y.dtype == bool or y.dtype == str:
-        y = pd.Series(pd.factorize(y)[0], name=y.name)
-    else:
-        y = pd.Series(y, name=y.name)
+    y_encoded, y_categories = pd.factorize(y)
+    y = np.asarray(y_encoded, dtype=np.int64)
 
     return X, y, df_characteristics
 
@@ -566,7 +563,7 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
         
         #scores = cross_validate(model, X, y_encoded, scoring=scoring, cv=cv, n_jobs=-1) #, return_train_score=True
         
-        scores = cross_validate(model, X, y.values.ravel(), scoring=scoring,cv=cv, n_jobs=-1)
+        scores = cross_validate(model, X, y.ravel() if hasattr(y, 'ravel') else y, scoring=scoring, cv=cv, n_jobs=-1)
         
         finish_time = round(time.time() - start_time,3)
         
@@ -879,11 +876,43 @@ def calculate_result_score(result):
             result.cohen_kappa_score,
         ]
 
-    metrics = [metric for metric in metrics if pd.notna(metric)]
-    if not metrics:
+    return _entropy_weighted_score(metrics)
+
+
+def _entropy_weighted_score(metrics):
+    """Compute an entropy-weighted composite score from a metric vector."""
+    cleaned_metrics = [float(metric) for metric in metrics if pd.notna(metric)]
+    if not cleaned_metrics:
         return np.nan
 
-    return round(float(np.mean(metrics)), 3)
+    metric_values = np.asarray(cleaned_metrics, dtype=float)
+    if np.any(metric_values < 0):
+        metric_values = metric_values - np.min(metric_values)
+
+    total = float(np.sum(metric_values))
+    if total <= 0:
+        return round(float(np.mean(cleaned_metrics)), 3)
+
+    shares = metric_values / total
+    valid_shares = shares[shares > 0]
+    if valid_shares.size == 0:
+        return round(float(np.mean(cleaned_metrics)), 3)
+
+    entropy_base = np.log(len(metric_values))
+    if entropy_base <= 0:
+        return round(float(np.mean(cleaned_metrics)), 3)
+
+    entropy_contrib = np.zeros_like(shares)
+    entropy_contrib[shares > 0] = -(shares[shares > 0] * np.log(shares[shares > 0])) / entropy_base
+
+    weights = shares * entropy_contrib
+    weight_total = float(np.sum(weights))
+    if weight_total <= 0:
+        weights = np.full(len(metric_values), 1.0 / len(metric_values))
+    else:
+        weights = weights / weight_total
+
+    return round(float(np.dot(metric_values, weights)), 3)
 
 
 def calculate_kb_row_score(row, problem_type):
@@ -904,11 +933,7 @@ def calculate_kb_row_score(row, problem_type):
             row['cohen kappa'],
         ]
 
-    metrics = [metric for metric in metrics if pd.notna(metric)]
-    if not metrics:
-        return np.nan
-
-    return round(float(np.mean(metrics)), 3)
+    return _entropy_weighted_score(metrics)
 
 
 def get_kb_metric_payload(result):
@@ -1150,3 +1175,4 @@ def run_execute_ml_for_all_multiclass_datasets():
 
 if __name__ == "__main__":
     run_execute_ml_for_all_multiclass_datasets()
+    #mcTest("yeast.csv")
