@@ -272,7 +272,11 @@ def resolve_multiclass_dataset_path(dataset_name):
 
 def get_kb_file_path(base_name, problem_type):
     """Build the knowledge-base CSV path for a problem type."""
-    return os.path.join(application_path, "output", f"{base_name}_{problem_type}.csv")
+    if problem_type == "binary":
+        file_name = f"{base_name}.csv"
+    else:  # multiclass
+        file_name = f"{base_name}_{problem_type}.csv"
+    return os.path.join(application_path, "output", file_name)
 
 
 def load_kb_dataframe(base_name, problem_type, columns=None):
@@ -380,7 +384,8 @@ def get_multiclass_metrics_from_scores(scores):
 
 def read_file(path):
     """Read a CSV dataset from disk and drop missing rows."""
-    df = pd.read_csv(path)
+    # Use pandas auto-detection for delimiter
+    df = pd.read_csv(path, sep=None, engine='python')
     df = df.dropna()
     return df, path.split('/')[-1]
 
@@ -410,8 +415,25 @@ def features_labels(df, dataset_name):
     
     print("\nDataset                      :", dataset_name, "\n")
     
-    X = df.iloc[: , :-1]
-    y = df.iloc[: , -1].copy()
+    # Intelligently detect target column: try last column first, then first column
+    # This handles datasets where the target might be in the first column
+    y_candidate_last = df.iloc[: , -1].copy()
+    y_candidate_first = df.iloc[: , 0].copy()
+    
+    # Determine which column to use as target
+    last_unique = y_candidate_last.nunique()
+    first_unique = y_candidate_first.nunique()
+    
+    if last_unique >= 2:
+        # Last column is valid (has 2+ classes)
+        X = df.iloc[: , :-1]
+        y = y_candidate_last
+    elif first_unique >= 2:
+        # First column is valid and last is not
+        X = df.iloc[: , 1:]
+        y = y_candidate_first
+    else:
+        raise ValueError(f"Cannot find valid target column. Last column has {last_unique} class(es), first column has {first_unique} class(es)")
 
     mfe = MFE(random_state=42, 
           groups=["complexity", "concept", "general", "itemset", "landmarking", "model-based", "statistical"], 
@@ -1123,95 +1145,6 @@ def mcTest(dataset_name):
     return execute_ml(dataset_path, None)
 
 
-def reduce_dataset_to_1000_samples(dataset_name, target_size=1000):
-    """
-    Reduce a multiclass dataset to 1000 records while maintaining imbalance ratio.
-    
-    Uses stratified sampling to preserve the class distribution proportions.
-    
-    Args:
-        dataset_name: Name of the CSV file in input/multiclass (with or without .csv extension)
-        target_size: Target number of records (default: 1000)
-    
-    Returns:
-        Tuple of (reduced_df, original_size, reduced_size, class_distribution_original, class_distribution_reduced)
-    """
-    try:
-        # Load the dataset
-        dataset_path = resolve_multiclass_dataset_path(dataset_name)
-        df = pd.read_csv(dataset_path)
-        df = df.dropna()
-        
-        original_size = len(df)
-        
-        # Get the target column (last column)
-        target_col = df.columns[-1]
-        
-        # Calculate original class distribution
-        class_dist_original = df[target_col].value_counts(normalize=True).to_dict()
-        
-        # If dataset is already smaller than target, return as-is
-        if original_size <= target_size:
-            print(f"Dataset {dataset_name} has {original_size} records (< {target_size}). No reduction needed.")
-            class_dist_reduced = df[target_col].value_counts(normalize=True).to_dict()
-            return df, original_size, original_size, class_dist_original, class_dist_reduced
-        
-        # Use stratified sampling to maintain class proportions
-        # Group by target, sample from each group, then concat back
-        sampled_groups = []
-        for class_val in df[target_col].unique():
-            class_df = df[df[target_col] == class_val]
-            n_samples = max(1, int(len(class_df) * target_size / original_size))
-            sampled_groups.append(class_df.sample(n=n_samples, random_state=42))
-        
-        df_reduced = pd.concat(sampled_groups, ignore_index=True)
-        
-        # Fine-tune to exact target size if needed
-        current_size = len(df_reduced)
-        if current_size > target_size:
-            df_reduced = df_reduced.sample(n=target_size, random_state=42).reset_index(drop=True)
-        elif current_size < target_size:
-            # If we're under, add a few more samples maintaining proportions
-            needed = target_size - current_size
-            for _ in range(needed):
-                # Add one sample from the class with highest count in reduced set
-                class_counts = df_reduced[target_col].value_counts()
-                most_common_class = class_counts.idxmax()
-                
-                # Sample from original dataset for this class
-                class_samples = df[df[target_col] == most_common_class]
-                new_sample = class_samples.sample(n=1, random_state=42)
-                df_reduced = pd.concat([df_reduced, new_sample], ignore_index=True)
-        
-        reduced_size = len(df_reduced)
-        class_dist_reduced = df_reduced[target_col].value_counts(normalize=True).to_dict()
-        
-        print(f"\nDataset reduction summary for {dataset_name}:")
-        print(f"  Original size: {original_size} records")
-        print(f"  Reduced size:  {reduced_size} records")
-        print(f"  Reduction: {100 * (original_size - reduced_size) / original_size:.1f}%")
-        print(f"\n  Original class distribution:")
-        for cls, prop in sorted(class_dist_original.items()):
-            print(f"    {cls}: {prop:.3f}")
-        print(f"\n  Reduced class distribution:")
-        for cls, prop in sorted(class_dist_reduced.items()):
-            print(f"    {cls}: {prop:.3f}")
-        
-        # Save the subset dataset with "_subset" suffix
-        dataset_base = os.path.splitext(dataset_name)[0]  # Remove .csv extension
-        subset_filename = f"{dataset_base}_subset.csv"
-        subset_path = os.path.join(os.path.dirname(dataset_path), subset_filename)
-        df_reduced.to_csv(subset_path, index=False, sep=",")
-        print(f"\n  Subset saved to: {subset_filename}")
-        
-        return df_reduced, original_size, reduced_size, class_dist_original, class_dist_reduced
-        
-    except Exception as e:
-        print(f"Error reducing dataset {dataset_name}: {type(e).__name__}: {e}")
-        traceback.print_exc()
-        return None, 0, 0, {}, {}
-
-
 def run_execute_ml_for_all_multiclass_datasets():
     """Run execute_ml for every CSV dataset found in input/multiclass."""
     datasets_dir = os.path.join(application_path, "input", "multiclass")
@@ -1279,8 +1212,6 @@ def run_execute_ml_for_all_multiclass_datasets():
     }
 
 
-
 if __name__ == "__main__":
     run_execute_ml_for_all_multiclass_datasets()
-    #reduce_dataset_to_1000_samples("Midwest_survey_clean.csv")
     #mcTest("yeast.csv")
