@@ -25,3 +25,6 @@ wine-quality-red.csv,RandomOverSampler,BalancedRandomForestClassifier,2.19,,,,,,
 wine_quality_red.csv,RandomOverSampler,BalancedRandomForestClassifier,2.133,,,,,,,,,,,0.401,0.072,0.381,0.045,0.687,0.028,0.523,0.045,0:09:14
 wine_quality_white.csv,RandomOverSampler,BalancedRandomForestClassifier,7.105,,,,,,,,,,,0.552,0.056,0.443,0.039,0.69,0.018,0.54,0.027,0:11:31
 yeast.csv,TomekLinks,RandomForestClassifier,0.918,,,,,,,,,,,0.584,0.078,0.558,0.075,0.609,0.046,0.508,0.061,0:00:47
+Diabetes130US_seed_2_nrows_2000_nclasses_10_ncols_100_stratify_True_clean.csv,SMOTE,GradientBoostingClassifier,76.947,,,,,,,,,,,0.452,0.063,0.416,0.028,0.536,0.029,0.193,0.055,0:17:40
+HCV_data_clean.csv,SMOTE,RandomForestClassifier,1.558,,,,,,,,,,,0.668,0.13,0.653,0.126,0.929,0.025,0.726,0.103,0:01:49
+Midwest_survey_clean_subset.csv,RandomOverSampler,BaggingClassifier,0.825,,,,,,,,,,,0.96,0.021,0.963,0.023,0.967,0.015,0.959,0.019,0:17:01
