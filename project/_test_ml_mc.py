@@ -916,10 +916,10 @@ def calculate_result_score(result):
             result.cohen_kappa_score,
         ]
 
-    return _entropy_weighted_score(metrics)
+    return entropy_weighted_score(metrics)
 
 
-def _entropy_weighted_score(metrics):
+def entropy_weighted_score(metrics):
     """Compute an entropy-weighted composite score from a metric vector."""
     cleaned_metrics = [float(metric) for metric in metrics if pd.notna(metric)]
     if not cleaned_metrics:
@@ -973,7 +973,7 @@ def calculate_kb_row_score(row, problem_type):
             row['cohen kappa'],
         ]
 
-    return _entropy_weighted_score(metrics)
+    return entropy_weighted_score(metrics)
 
 
 def get_kb_metric_payload(result):
