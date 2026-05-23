@@ -64,9 +64,16 @@ def execute_ml(dataset_location, id_openml):
             try:
                 print("loading: ", i, " of ", len(array_balancing))
                 i += 1
-                balancing_technique = pre_processing(balancing) 
+                balancing_technique = pre_processing(balancing)
+                if balancing_technique is None:
+                    print(f"Warning: pre_processing returned None for '{balancing}'")
+                    continue
                 resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
-            except Exception:
+            except (ValueError, KeyError) as e:
+                print(f"Error with balancing technique '{balancing}': {e}")
+                traceback.print_exc()
+            except Exception as e:
+                print(f"Unexpected error with balancing technique '{balancing}': {e}")
                 traceback.print_exc()
         
         finish_time = (round(time.time() - start_time,3))
@@ -115,9 +122,16 @@ def execute_ml_test(dataset_location, id_openml):
         resultsList = []
         for balancing in array_balancing:
             try:
-                balancing_technique = pre_processing(balancing) 
+                balancing_technique = pre_processing(balancing)
+                if balancing_technique is None:
+                    print(f"Warning: pre_processing returned None for '{balancing}'")
+                    continue
                 resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
-            except Exception:
+            except (ValueError, KeyError) as e:
+                print(f"Error with balancing technique '{balancing}': {e}")
+                traceback.print_exc()
+            except Exception as e:
+                print(f"Unexpected error with balancing technique '{balancing}': {e}")
                 traceback.print_exc()
         
         #  TEST VERSION
@@ -255,7 +269,6 @@ elif __file__:
     application_path = os.path.dirname(__file__)
 
 
-
 def resolve_multiclass_dataset_path(dataset_name):
     """Resolve a dataset name to read datasets from the input/multiclass folder."""
     if not dataset_name:
@@ -324,70 +337,12 @@ def sanitize_feature_names(X):
     return X.rename(columns=rename_map)
 
 
-def get_scoring(problem_type):
-    """Build the scoring dictionary for binary or multiclass evaluation."""
-    if problem_type == "multiclass":
-        scoring = {
-            'balanced_accuracy': 'balanced_accuracy',
-            'f1': 'f1_macro',
-            'roc_auc': 'roc_auc_ovr',
-            'g_mean': make_scorer(geometric_mean_score, average='multiclass', greater_is_better=True),
-            'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
-        }
-        scoring.update(get_multiclass_scoring())
-        return scoring
-
-    return {
-        'balanced_accuracy': 'balanced_accuracy',
-        'f1': 'f1',
-        'roc_auc': 'roc_auc',
-        'g_mean': make_scorer(geometric_mean_score, average='binary', greater_is_better=True),
-        'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
-    }
-
-
-def get_multiclass_scoring():
-    """Build additional scorers that only make sense for multiclass data."""
-    return {
-        'precision_macro': make_scorer(precision_score, average='macro', zero_division=0),
-        'recall_macro': make_scorer(recall_score, average='macro', zero_division=0),
-        'f1_weighted': 'f1_weighted',
-        'matthews_corrcoef': make_scorer(matthews_corrcoef),
-    }
-
-
-def get_multiclass_metrics_from_scores(scores):
-    """Summarize multiclass-only metrics from cross-validation scores."""
-    precision_macro = round(np.mean(scores['test_precision_macro']), 3)
-    precision_macro_std = round(np.std(scores['test_precision_macro']), 3)
-
-    recall_macro = round(np.mean(scores['test_recall_macro']), 3)
-    recall_macro_std = round(np.std(scores['test_recall_macro']), 3)
-
-    f1_weighted = round(np.mean(scores['test_f1_weighted']), 3)
-    f1_weighted_std = round(np.std(scores['test_f1_weighted']), 3)
-
-    matthews_corrcoef = round(np.mean(scores['test_matthews_corrcoef']), 3)
-    matthews_corrcoef_std = round(np.std(scores['test_matthews_corrcoef']), 3)
-
-    return (
-        precision_macro,
-        precision_macro_std,
-        recall_macro,
-        recall_macro_std,
-        f1_weighted,
-        f1_weighted_std,
-        matthews_corrcoef,
-        matthews_corrcoef_std,
-    )
-
-
 def read_file(path):
     """Read a CSV dataset from disk and drop missing rows."""
     # Use pandas auto-detection for delimiter
     df = pd.read_csv(path, sep=None, engine='python')
     df = df.dropna()
-    return df, path.split('/')[-1]
+    return df, os.path.basename(path)
 
 
 
@@ -486,87 +441,35 @@ def features_labels(df, dataset_name):
 
 
 
+# Balancing techniques mapping for efficient lookup
+_BALANCING_TECHNIQUES = {
+    "ClusterCentroids": lambda: ClusterCentroids(random_state=42),
+    "CondensedNearestNeighbour": lambda: CondensedNearestNeighbour(random_state=42, n_jobs=-1),
+    "EditedNearestNeighbours": lambda: EditedNearestNeighbours(n_jobs=-1),
+    "RepeatedEditedNearestNeighbours": lambda: RepeatedEditedNearestNeighbours(n_jobs=-1),
+    "AllKNN": lambda: AllKNN(n_jobs=-1),
+    "InstanceHardnessThreshold": lambda: InstanceHardnessThreshold(random_state=42, n_jobs=-1),
+    "NearMiss": lambda: NearMiss(n_jobs=-1),
+    "NeighbourhoodCleaningRule": lambda: NeighbourhoodCleaningRule(n_jobs=-1),
+    "OneSidedSelection": lambda: OneSidedSelection(random_state=42, n_jobs=-1),
+    "RandomUnderSampler": lambda: RandomUnderSampler(random_state=42),
+    "TomekLinks": lambda: TomekLinks(n_jobs=-1),
+    "RandomOverSampler": lambda: RandomOverSampler(random_state=42),
+    "SMOTE": lambda: SMOTE(random_state=42),
+    "ADASYN": lambda: ADASYN(random_state=42),
+    "BorderlineSMOTE": lambda: BorderlineSMOTE(random_state=42, n_jobs=-1),
+    "KMeansSMOTE": lambda: KMeansSMOTE(random_state=42, n_jobs=-1),
+    "SVMSMOTE": lambda: SVMSMOTE(random_state=42),
+    "SMOTEENN": lambda: SMOTEENN(random_state=42, n_jobs=-1),
+    "SMOTETomek": lambda: SMOTETomek(random_state=42, n_jobs=-1),
+}
+
+
 def pre_processing(balancing):
     """Create the configured resampling strategy for a given name."""
-    
-    balancing_technique = None
-    
-    # -- Under-sampling methods --
-    if balancing == "ClusterCentroids":
-        balancing_technique = ClusterCentroids(random_state=42)
-
-    if balancing == "CondensedNearestNeighbour":
-        balancing_technique = CondensedNearestNeighbour(random_state=42, n_jobs=-1)
-
-    if balancing == "EditedNearestNeighbours":
-        balancing_technique = EditedNearestNeighbours(n_jobs=-1)
-
-    if balancing == "RepeatedEditedNearestNeighbours":
-        balancing_technique = RepeatedEditedNearestNeighbours(n_jobs=-1)
-
-    if balancing == "AllKNN":
-        balancing_technique = AllKNN(n_jobs=-1)
-
-    if balancing == "InstanceHardnessThreshold":
-        balancing_technique = InstanceHardnessThreshold(random_state=42, n_jobs=-1)
-
-    if balancing == "NearMiss":
-        balancing_technique = NearMiss(n_jobs=-1)
-
-    if balancing == "NeighbourhoodCleaningRule":
-        balancing_technique = NeighbourhoodCleaningRule(n_jobs=-1)
-
-    if balancing == "OneSidedSelection":
-        balancing_technique = OneSidedSelection(random_state=42, n_jobs=-1)
-
-    if balancing == "RandomUnderSampler":
-        balancing_technique = RandomUnderSampler(random_state=42) #sampling_strategy=0.5
-    
-    if balancing == "TomekLinks":
-        balancing_technique = TomekLinks(n_jobs=-1)
-    
-    
-    # -- Over-sampling methods --
-    if balancing == "RandomOverSampler":
-        balancing_technique = RandomOverSampler(random_state=42) #sampling_strategy=0.5
-    
-    if balancing == "SMOTE":
-        balancing_technique = SMOTE(random_state=42) #sampling_strategy=0.5
-    
-    if balancing == "ADASYN":
-        balancing_technique = ADASYN(random_state=42)
-    
-    if balancing == "BorderlineSMOTE":
-        balancing_technique = BorderlineSMOTE(random_state=42, n_jobs=-1)
-    
-    if balancing == "KMeansSMOTE":
-        #UserWarning: MiniBatchKMeans
-        # kmeans = MiniBatchKMeans(batch_size=2048)
-        # , kmeans_estimator=kmeans
-        
-        # imbalance_ratio = 0
-        # if y.values.tolist().count([0]) > 0 and y.values.tolist().count([1]) > 0:
-        #     if y.values.tolist().count([0]) >= y.values.tolist().count([1]):
-        #         imbalance_ratio = round(y.values.tolist().count([0])/y.values.tolist().count([1]),3)
-        #     else:
-        #         imbalance_ratio = round(y.values.tolist().count([1])/y.values.tolist().count([0]),3)
-        
-        # n_clusters = 1/imbalance_ratio
-        
-        balancing_technique = KMeansSMOTE(random_state=42, n_jobs=-1) #cluster_balance_threshold=n_clusters
-    
-    if balancing == "SVMSMOTE":
-        balancing_technique = SVMSMOTE(random_state=42)
-    
-    
-    # -- Combination of over- and under-sampling methods --
-    if balancing == "SMOTEENN":
-        balancing_technique = SMOTEENN(random_state=42, n_jobs=-1)
-        
-    if balancing == "SMOTETomek":
-        balancing_technique = SMOTETomek(random_state=42, n_jobs=-1)
-    
-    return balancing_technique
+    if balancing not in _BALANCING_TECHNIQUES:
+        raise ValueError(f"Unknown balancing technique: '{balancing}'. Available options: {', '.join(sorted(_BALANCING_TECHNIQUES.keys()))}")
+    return _BALANCING_TECHNIQUES[balancing]()
 
 
 
@@ -645,7 +548,61 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
         
     return resultsList
 
+def get_scoring(problem_type):
+    """Build the scoring dictionary for binary or multiclass evaluation."""
+    if problem_type == "multiclass":
+        scoring = {
+            'balanced_accuracy': 'balanced_accuracy',
+            'f1': 'f1_macro',
+            'roc_auc': 'roc_auc_ovr',
+            'g_mean': make_scorer(geometric_mean_score, average='multiclass', greater_is_better=True),
+            'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
+        }
+        scoring.update(get_multiclass_scoring())
+        return scoring
 
+    return {
+        'balanced_accuracy': 'balanced_accuracy',
+        'f1': 'f1',
+        'roc_auc': 'roc_auc',
+        'g_mean': make_scorer(geometric_mean_score, average='binary', greater_is_better=True),
+        'cohen_kappa': make_scorer(cohen_kappa_score, greater_is_better=True),
+    }
+
+
+def get_multiclass_scoring():
+    """Build additional scorers that only make sense for multiclass data."""
+    return {
+        'precision_macro': make_scorer(precision_score, average='macro', zero_division=0),
+        'recall_macro': make_scorer(recall_score, average='macro', zero_division=0),
+        'f1_weighted': 'f1_weighted',
+        'matthews_corrcoef': make_scorer(matthews_corrcoef),
+    }
+
+def get_multiclass_metrics_from_scores(scores):
+    """Summarize multiclass-only metrics from cross-validation scores."""
+    precision_macro = round(np.mean(scores['test_precision_macro']), 3)
+    precision_macro_std = round(np.std(scores['test_precision_macro']), 3)
+
+    recall_macro = round(np.mean(scores['test_recall_macro']), 3)
+    recall_macro_std = round(np.std(scores['test_recall_macro']), 3)
+
+    f1_weighted = round(np.mean(scores['test_f1_weighted']), 3)
+    f1_weighted_std = round(np.std(scores['test_f1_weighted']), 3)
+
+    matthews_corrcoef = round(np.mean(scores['test_matthews_corrcoef']), 3)
+    matthews_corrcoef_std = round(np.std(scores['test_matthews_corrcoef']), 3)
+
+    return (
+        precision_macro,
+        precision_macro_std,
+        recall_macro,
+        recall_macro_std,
+        f1_weighted,
+        f1_weighted_std,
+        matthews_corrcoef,
+        matthews_corrcoef_std,
+    )
 
 def find_best_result(resultsList):
     """Select the result with the highest composite score."""
@@ -662,15 +619,6 @@ def find_best_result(resultsList):
     print("\nBest classifier is", best_result.algorithm, "with", string_balancing, "\n")
     
     return best_result
-
-
-
-# determine if application is a script file or frozen exe
-application_path = ""
-if getattr(sys, 'frozen', False):
-    application_path = os.path.dirname(sys.executable)
-elif __file__:
-    application_path = os.path.dirname(__file__)
 
 
 
@@ -859,7 +807,11 @@ def get_best_results_by_characteristics(dataset_name, problem_type):
     df_c_a = df_c.loc[df_c['dataset'] == dataset_name]
     df_c_a = df_c_a.drop(['dataset', 'pre processing','algorithm'], axis=1)
     list_a = df_c_a.values.tolist()[0]
-    list_a = [(float(i)-min(list_a))/(max(list_a)-min(list_a)) for i in list_a]
+    min_a, max_a = min(list_a), max(list_a)
+    if min_a == max_a:
+        list_a = [0.0] * len(list_a)  # All values are identical, normalize to 0
+    else:
+        list_a = [(float(i) - min_a) / (max_a - min_a) for i in list_a]
 
     df_c = df_c.loc[df_c['dataset'] != dataset_name]
     list_dist = []
@@ -868,7 +820,11 @@ def get_best_results_by_characteristics(dataset_name, problem_type):
         df_c_b = df_c_b.drop(['dataset', 'pre processing','algorithm'])
         list_b = df_c_b.values.tolist()
         list_b = [x for xs in list_b for x in xs]
-        list_b = [(float(i)-min(list_b))/(max(list_b)-min(list_b)) for i in list_b]
+        min_b, max_b = min(list_b), max(list_b)
+        if min_b == max_b:
+            list_b = [0.0] * len(list_b)  # All values are identical, normalize to 0
+        else:
+            list_b = [(float(i) - min_b) / (max_b - min_b) for i in list_b]
         list_dist.append((row['dataset'], row['pre processing'], row['algorithm'], np.linalg.norm(np.array(list_a) - np.array(list_b))))
         
     df_dist = pd.DataFrame(list_dist, columns=["dataset", "pre processing", "algorithm","result"])
@@ -1214,4 +1170,3 @@ def run_execute_ml_for_all_multiclass_datasets():
 
 if __name__ == "__main__":
     run_execute_ml_for_all_multiclass_datasets()
-    #mcTest("yeast.csv")
