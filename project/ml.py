@@ -27,6 +27,76 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+def get_problem_type(y):
+    target = y.iloc[:, 0] if isinstance(y, pd.DataFrame) else y
+    target = pd.Series(target).dropna()
+
+    if target.nunique() > 2:
+        return "multiclass"
+
+    return "binary"
+
+
+def get_kb_file_path(base_name, problem_type):
+    if problem_type == "binary":
+        file_name = f"{base_name}.csv"
+    else:  # multiclass
+        file_name = f"{base_name}_{problem_type}.csv"
+    return os.path.join(application_path, "output", file_name)
+
+
+def load_kb_dataframe(base_name, problem_type, columns=None):
+    file_path = get_kb_file_path(base_name, problem_type)
+
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path, sep=",")
+
+    if columns is not None:
+        return pd.DataFrame(columns=columns)
+
+    return pd.DataFrame()
+
+
+def get_results_columns():
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "total elapsed time",
+    ]
+
+
+def get_full_results_columns():
+    return [
+        "dataset",
+        "pre processing",
+        "algorithm",
+        "time",
+        "balanced accuracy",
+        "balanced accuracy std",
+        "f1 score",
+        "f1 score std",
+        "roc auc",
+        "roc auc std",
+        "geometric mean",
+        "geometric mean std",
+        "cohen kappa",
+        "cohen kappa std",
+        "final score",
+    ]
+
+
 def execute_ml(dataset_location, id_openml):
     
     try:
@@ -40,6 +110,7 @@ def execute_ml(dataset_location, id_openml):
         start_time = time.time()
         
         X, y, df_characteristics = features_labels(df, dataset_name)
+        problem_type = get_problem_type(y)
         
         # array_balancing = ["(no pre processing)"]
         # array_balancing = [
@@ -68,11 +139,11 @@ def execute_ml(dataset_location, id_openml):
         
         best_result = find_best_result(resultsList)
         
-        result_updated = write_results(best_result, finish_time)
+        result_updated = write_results(best_result, finish_time, problem_type)
         
-        write_full_results(resultsList, dataset_name)
+        write_full_results(resultsList, dataset_name, problem_type)
         
-        write_characteristics(df_characteristics, best_result, result_updated)
+        write_characteristics(df_characteristics, best_result, result_updated, problem_type)
         
         return dataset_name
     
@@ -142,9 +213,10 @@ def execute_byCharacteristics(dataset_location, id_openml):
             return False
         
         X, y, df_characteristics = features_labels(df, dataset_name)
+        problem_type = get_problem_type(y)
         
-        write_characteristics(df_characteristics, None, False)
-        df_dist = get_best_results_by_characteristics(dataset_name)
+        write_characteristics(df_characteristics, None, False, problem_type)
+        df_dist = get_best_results_by_characteristics(dataset_name, problem_type)
         str_output = display_final_results(df_dist)
         
         return str_output
@@ -402,7 +474,7 @@ elif __file__:
 
 
 
-def write_characteristics(df_characteristics, best_result, result_updated):
+def write_characteristics(df_characteristics, best_result, result_updated, problem_type):
     if df_characteristics.empty:
         print("--df_characteristics not valid on write_characteristics--")
         print("df_characteristics:", df_characteristics)
@@ -410,7 +482,11 @@ def write_characteristics(df_characteristics, best_result, result_updated):
     
     try:
     
-        df_kb_c = pd.read_csv(application_path + "/output/" + "kb_characteristics.csv", sep=",")
+        df_kb_c = load_kb_dataframe(
+            "kb_characteristics",
+            problem_type,
+            columns=list(df_characteristics.columns) + ["pre processing", "algorithm"],
+        )
         #print(df_kb_c, '\n')
         
         df_kb_c_without = df_kb_c.loc[(df_kb_c["dataset"].values != df_characteristics["dataset"].values)]
@@ -445,7 +521,7 @@ def write_characteristics(df_characteristics, best_result, result_updated):
             else:
                 df_characteristics = df_kb_c
         
-        df_characteristics.to_csv(application_path + "/output/" + "kb_characteristics.csv", sep=",", index=False)
+        df_characteristics.to_csv(get_kb_file_path("kb_characteristics", problem_type), sep=",", index=False)
         
     except Exception:
         traceback.print_exc()
@@ -456,7 +532,7 @@ def write_characteristics(df_characteristics, best_result, result_updated):
 
 
 #writes if best
-def write_results(best_result, elapsed_time):
+def write_results(best_result, elapsed_time, problem_type):
     if not best_result:
         print("--best_result or elapsed_time not valid on write_results--")
         print("best_result:", best_result)
@@ -474,7 +550,7 @@ def write_results(best_result, elapsed_time):
         print("Best Final Score Obtained    :", current_value)
         print("Elapsed Time                 :", elapsed_time, "\n")
         
-        df_kb_r = pd.read_csv(application_path + "/output/" + "kb_results.csv", sep=",")
+        df_kb_r = load_kb_dataframe("kb_results", problem_type, columns=get_results_columns())
         
         df_kb_r2 = df_kb_r.loc[df_kb_r['dataset'] == best_result.dataset_name]
         
@@ -500,7 +576,7 @@ def write_results(best_result, elapsed_time):
                 df_kb_r.at[index, 'cohen kappa std'] = best_result.cohen_kappa_score_std
                 df_kb_r.at[index, 'total elapsed time'] = elapsed_time
                 
-                df_kb_r.to_csv(application_path + "/output/" + "kb_results.csv", sep=",", index=False)
+                df_kb_r.to_csv(get_kb_file_path("kb_results", problem_type), sep=",", index=False)
                 
                 result_updated = True
                 
@@ -529,7 +605,7 @@ def write_results(best_result, elapsed_time):
                 elapsed_time
             ]
 
-            df_kb_r.to_csv(application_path + "/output/" + "kb_results.csv", sep=",", index=False)
+            df_kb_r.to_csv(get_kb_file_path("kb_results", problem_type), sep=",", index=False)
             
             print("Results written, row added!","\n")  
         
@@ -542,7 +618,7 @@ def write_results(best_result, elapsed_time):
 
 
 #only writes at first time 
-def write_full_results(resultsList, dataset_name):
+def write_full_results(resultsList, dataset_name, problem_type):
     if not resultsList or not dataset_name:
         print("--resultsList not valid on write_full_results--")
         print("resultsList:", resultsList)
@@ -551,7 +627,7 @@ def write_full_results(resultsList, dataset_name):
     
     try:
     
-        df_kb_r = pd.read_csv(application_path + "/output/" + "kb_full_results.csv", sep=",")
+        df_kb_r = load_kb_dataframe("kb_full_results", problem_type, columns=get_full_results_columns())
         
         df_kb_r2 = df_kb_r.loc[df_kb_r['dataset'] == dataset_name]
         
@@ -579,7 +655,7 @@ def write_full_results(resultsList, dataset_name):
 
             df_kb_r.sort_values(by=['final score'], ascending=False, inplace=True)
 
-            df_kb_r.to_csv(application_path + "/output/" + "kb_full_results.csv", sep=",", index=False)
+            df_kb_r.to_csv(get_kb_file_path("kb_full_results", problem_type), sep=",", index=False)
             
             print("Full Results written, rows added!","\n")
         
@@ -595,13 +671,16 @@ def write_full_results(resultsList, dataset_name):
 
 
 #by Euclidean Distance
-def get_best_results_by_characteristics(dataset_name):
+def get_best_results_by_characteristics(dataset_name, problem_type):
     if not dataset_name:
         print("--dataset_name not valid on get_best_results_by_characteristics--")
         print("best_result:", dataset_name)
         return False
     
-    df_c = pd.read_csv(application_path + "/output/" + "kb_characteristics.csv", sep=",")
+    df_c = load_kb_dataframe("kb_characteristics", problem_type)
+    if df_c.empty:
+        return False
+
     df_c = df_c.dropna(axis=1)
     df_c = df_c.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
     
@@ -644,7 +723,6 @@ def display_final_results(df_dist):
     str_output += "\n".join("{:7} {:25} {:25}".format(x, y, z) for x, y, z in zip(df_dist['rank'], df_dist['pre processing'], df_dist['algorithm']))
     str_output += "\n"
     return str_output
-
 
 
 class Results(object):
