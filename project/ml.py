@@ -365,9 +365,15 @@ def write_full_results(resultsList, dataset_name):
     return True
 
 
-def get_best_results_by_characteristics(dataset_name, problem_type):
+def get_best_results_by_characteristics(dataset_name, problem_type, current_features_df=None):
     """
     Find the most similar past datasets.
+    
+    Args:
+        dataset_name: Name of the dataset to find recommendations for
+        problem_type: "binary" or "multiclass"
+        current_features_df: Optional pre-computed characteristics DataFrame for the current dataset.
+                           If not provided, will be loaded from KB (useful for LOOCV where dataset is excluded).
     """
     if not dataset_name:
         logger.error(f"get_best_results_by_characteristics: dataset_name is invalid: {dataset_name}")
@@ -378,40 +384,97 @@ def get_best_results_by_characteristics(dataset_name, problem_type):
         logger.error(f"kb_characteristics is empty for problem_type: {problem_type}")
         return False
 
-    df_c = df_c.dropna(axis=1)
-    df_c = df_c.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
+    logger.debug(f"KB characteristics loaded: {len(df_c)} datasets before filtering")
+    
+    # DON'T drop NaN columns globally - use consistent feature space
+    # Just replace inf values with NaN
+    df_c = df_c.replace([np.inf, -np.inf], np.nan)
     
     # Get current dataset characteristics
-    current_dataset_chars = df_c.loc[df_c['dataset'] == dataset_name]
-    current_dataset_chars = current_dataset_chars.drop(['dataset', 'pre processing','algorithm'], axis=1)
-    current_features = current_dataset_chars.values.tolist()[0]
+    if current_features_df is not None:
+        # Use provided characteristics (for LOOCV)
+        current_dataset_chars = current_features_df.replace([np.inf, -np.inf], np.nan)
+        logger.debug(f"Using provided characteristics for {dataset_name}")
+    else:
+        # Load from KB (normal operation)
+        current_dataset_chars = df_c.loc[df_c['dataset'] == dataset_name]
+    
+    if current_dataset_chars.empty:
+        logger.error(f"Dataset {dataset_name} not found in characteristics KB for problem_type: {problem_type}")
+        return pd.DataFrame(columns=['pre processing', 'algorithm'])
+    
+    # Extract numeric features (drop metadata columns)
+    current_dataset_chars_features = current_dataset_chars.drop(['dataset', 'pre processing','algorithm'], axis=1, errors='ignore')
+    # Drop only columns that are NaN in the current dataset
+    current_dataset_chars_features = current_dataset_chars_features.dropna(axis=1)
+    
+    # Get the column names to use for all comparisons (consistency)
+    feature_columns = current_dataset_chars_features.columns.tolist()
+    logger.debug(f"Using {len(feature_columns)} features for comparison")
+    
+    current_features = current_dataset_chars_features.values.tolist()[0]
+    logger.debug(f"Current dataset features: {len(current_features)} features extracted")
+    
     min_current, max_current = min(current_features), max(current_features)
     if min_current == max_current:
         current_features_norm = [0.0] * len(current_features)
     else:
         current_features_norm = [(float(i) - min_current) / (max_current - min_current) for i in current_features]
 
-    df_c = df_c.loc[df_c['dataset'] != dataset_name]
+    # Filter out current dataset from comparison pool
+    df_c_comparison = df_c.loc[df_c['dataset'] != dataset_name]
+    logger.debug(f"Comparison pool: {len(df_c_comparison)} datasets after excluding current dataset")
+    
+    if df_c_comparison.empty:
+        logger.warning(f"No other datasets available for comparison (KB too small or only 1 dataset)")
+        return pd.DataFrame(columns=['pre processing', 'algorithm'])
+    
     distances = []
-    for index, row in df_c.iterrows():
-        comparison_chars = row.to_frame()
-        comparison_chars = comparison_chars.drop(['dataset', 'pre processing','algorithm'])
-        comparison_features = comparison_chars.values.tolist()
-        comparison_features = [x for xs in comparison_features for x in xs]
-        min_comparison, max_comparison = min(comparison_features), max(comparison_features)
-        if min_comparison == max_comparison:
-            comparison_features_norm = [0.0] * len(comparison_features)
-        else:
-            comparison_features_norm = [(float(i) - min_comparison) / (max_comparison - min_comparison) for i in comparison_features]
-        distances.append((row['dataset'], row['pre processing'], row['algorithm'], np.linalg.norm(np.array(current_features_norm) - np.array(comparison_features_norm))))
-        
+    for index, row in df_c_comparison.iterrows():
+        try:
+            # Extract features using the same columns as the current dataset
+            comparison_features_list = []
+            for col in feature_columns:
+                val = row.get(col, np.nan)
+                if pd.isna(val):
+                    # Skip datasets with missing values in required features
+                    comparison_features_list = None
+                    break
+                comparison_features_list.append(float(val))
+            
+            if comparison_features_list is None:
+                logger.debug(f"Skipping {row['dataset']}: has NaN values in required features")
+                continue
+            
+            # Normalize comparison features
+            min_comparison, max_comparison = min(comparison_features_list), max(comparison_features_list)
+            if min_comparison == max_comparison:
+                comparison_features_norm = [0.0] * len(comparison_features_list)
+            else:
+                comparison_features_norm = [(float(i) - min_comparison) / (max_comparison - min_comparison) for i in comparison_features_list]
+            
+            distance = np.linalg.norm(np.array(current_features_norm) - np.array(comparison_features_norm))
+            distances.append((row['dataset'], row['pre processing'], row['algorithm'], distance))
+        except Exception as e:
+            logger.warning(f"Error computing distance for dataset {row['dataset']}: {str(e)}")
+    
+    logger.debug(f"Computed distances for {len(distances)} dataset-pipeline combinations")
+    
+    if not distances:
+        logger.warning(f"No valid distances computed for {dataset_name}")
+        return pd.DataFrame(columns=['pre processing', 'algorithm'])
+    
     df_dist = pd.DataFrame(distances, columns=["dataset", "pre processing", "algorithm","distance"])
     df_dist = df_dist.sort_values(by=['distance'])
+    before_dedup = len(df_dist)
     df_dist = df_dist.drop_duplicates(subset=['pre processing', 'algorithm'], keep='first')
+    after_dedup = len(df_dist)
+    logger.debug(f"Before dedup: {before_dedup} records, after dedup: {after_dedup} records")
+    
     df_dist = df_dist.reset_index(drop=True)
     df_dist = df_dist.head(TOP_RECOMMENDATIONS)
     
-    logger.info(f"Top {TOP_RECOMMENDATIONS} recommendations:\n{df_dist}")
+    logger.info(f"Top {TOP_RECOMMENDATIONS} recommendations for {dataset_name}:\n{df_dist}")
     
     df_dist = df_dist[['pre processing', 'algorithm']]
     
@@ -497,7 +560,7 @@ def execute_ml(dataset_location, id_openml):
         return False
 
 
-def execute_byCharacteristics(dataset_location, id_openml):
+def execute_byCharacteristics(dataset_location, id_openml, problem_type=None):
     """Return the top pre-processing and classifier options by similarity."""
     try:
         if dataset_location:
@@ -508,7 +571,8 @@ def execute_byCharacteristics(dataset_location, id_openml):
             return False
         
         X, y, df_characteristics = features_labels(df, dataset_name)
-        problem_type = get_problem_type(y)
+        if problem_type is None:
+            problem_type = get_problem_type(y)
         
         write_characteristics(df_characteristics, None, False, problem_type)
         df_dist = get_best_results_by_characteristics(dataset_name, problem_type)

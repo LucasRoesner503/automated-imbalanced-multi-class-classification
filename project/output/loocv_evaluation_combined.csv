@@ -1,0 +1,130 @@
+dataset,recommended_preproc,recommended_algorithm,recommended_score,best_preproc,best_algorithm,best_score,rank,is_top_1,is_top_3,delta_score,rec_balanced_accuracy,rec_f1_score,rec_roc_auc,best_balanced_accuracy,best_f1_score,best_roc_auc,problem_type,rec_precision_macro,rec_recall_macro,rec_f1_weighted,best_precision_macro,best_recall_macro,best_f1_weighted
+poker-8-9_vs_6.dat,SMOTE,GradientBoostingClassifier,0.889,SMOTE,XGBClassifier,0.921,4.0,False,False,-0.032,0.945,0.787,0.992,0.922,0.89,0.993,binary,,,,,,
+kr-vs-k-zero-one_vs_draw.dat,RandomOverSampler,GradientBoostingClassifier,0.966,SMOTE,XGBClassifier,0.972,5.0,False,False,-0.006,0.997,0.92,0.999,0.988,0.942,1.0,binary,,,,,,
+kr-vs-k-zero_vs_eight.dat,SVMSMOTE,GradientBoostingClassifier,0.982,RandomOverSampler,GradientBoostingClassifier,0.987,2.0,False,True,-0.005,0.999,0.956,1.0,0.999,0.97,1.0,binary,,,,,,
+kr-vs-k-three_vs_eleven.dat,SVMSMOTE,XGBClassifier,0.994,RandomOverSampler,LGBMClassifier,0.994,1.0,True,True,0.0,0.998,0.987,1.0,0.996,0.99,1.0,binary,,,,,,
+dermatology-6.dat,RandomOverSampler,LGBMClassifier,0.945,RandomOverSampler,XGBClassifier,0.991,10.0,False,False,-0.046,0.956,0.913,0.998,0.999,0.98,0.999,binary,,,,,,
+car-vgood.dat,RandomOverSampler,GradientBoostingClassifier,0.944,RandomOverSampler,XGBClassifier,0.997,9.0,False,False,-0.053,0.994,0.869,1.0,1.0,0.993,1.0,binary,,,,,,
+abalone-21_vs_8.dat,RandomOverSampler,LGBMClassifier,0.593,SVMSMOTE,GradientBoostingClassifier,0.746,12.0,False,False,-0.153,0.714,0.449,0.887,0.845,0.647,0.859,binary,,,,,,
+kr-vs-k-zero_vs_fifteen.dat,RandomOverSampler,GradientBoostingClassifier,0.99,SVMSMOTE,XGBClassifier,0.998,8.0,False,False,-0.008,0.989,0.987,1.0,1.0,0.995,1.0,binary,,,,,,
+poker-8_vs_6.dat,SMOTE,XGBClassifier,0.838,SMOTE,GradientBoostingClassifier,0.954,5.0,False,False,-0.116,0.883,0.771,0.983,0.974,0.921,0.997,binary,,,,,,
+eucalyptus (id:990),SVMSMOTE,XGBClassifier,0.728,SMOTETomek,GradientBoostingClassifier,0.746,7.0,False,False,-0.018,0.747,0.825,0.845,0.767,0.833,0.849,binary,,,,,,
+colleges_aaup (id:897),SMOTETomek,LGBMClassifier,0.977,SMOTE,GradientBoostingClassifier,0.978,5.0,False,False,-0.001,0.978,0.971,0.999,0.979,0.972,0.999,binary,,,,,,
+dermatology (id:1010),SVMSMOTE,LGBMClassifier,0.988,RandomOverSampler,LGBMClassifier,0.996,6.0,False,False,-0.008,0.988,0.991,1.0,0.996,0.997,1.0,binary,,,,,,
+autos (id:975),SVMSMOTE,LGBMClassifier,0.923,SMOTETomek,LGBMClassifier,0.927,3.0,False,True,-0.004,0.927,0.952,0.968,0.93,0.955,0.968,binary,,,,,,
+arsenic-female-lung (id:950),RandomOverSampler,LGBMClassifier,0.814,RandomOverSampler,LGBMClassifier,0.814,1.0,True,True,0.0,0.871,0.734,0.903,0.871,0.734,0.903,binary,,,,,,
+optdigits (id:980),RandomOverSampler,GradientBoostingClassifier,0.984,SVMSMOTE,XGBClassifier,0.985,2.0,False,True,-0.001,0.982,0.996,0.999,0.979,0.997,0.999,binary,,,,,,
+analcatdata_apnea1 (id:767),SMOTETomek,LGBMClassifier,0.83,RandomOverSampler,GradientBoostingClassifier,0.842,8.0,False,False,-0.012,0.864,0.754,0.959,0.899,0.749,0.96,binary,,,,,,
+oil_spill (id:311),RandomOverSampler,LGBMClassifier,0.651,SMOTETomek,GradientBoostingClassifier,0.734,12.0,False,False,-0.083,0.716,0.503,0.922,0.812,0.58,0.938,binary,,,,,,
+segment (id:958),RandomOverSampler,LGBMClassifier,0.993,SVMSMOTE,GradientBoostingClassifier,0.995,9.0,False,False,-0.002,0.992,0.998,0.998,0.995,0.998,1.0,binary,,,,,,
+mfeat-zernike (id:995),RandomOverSampler,LGBMClassifier,0.973,SVMSMOTE,XGBClassifier,0.981,12.0,False,False,-0.008,0.965,0.995,0.994,0.981,0.995,0.996,binary,,,,,,
+Satellite (id:40900),SMOTE,XGBClassifier,0.843,SMOTETomek,LGBMClassifier,0.846,4.0,False,False,-0.003,0.883,0.739,0.99,0.875,0.752,0.993,binary,,,,,,
+analcatdata_apnea2 (id:765),RandomOverSampler,LGBMClassifier,0.885,RandomOverSampler,GradientBoostingClassifier,0.896,10.0,False,False,-0.011,0.911,0.828,0.982,0.936,0.833,0.972,binary,,,,,,
+climate-model-simulation-crashes (id:40994),RandomOverSampler,GradientBoostingClassifier,0.808,SVMSMOTE,XGBClassifier,0.835,11.0,False,False,-0.027,0.792,0.967,0.941,0.816,0.97,0.954,binary,,,,,,
+car-good.dat,SVMSMOTE,GradientBoostingClassifier,0.852,RandomOverSampler,LGBMClassifier,0.924,7.0,False,False,-0.072,0.935,0.71,0.987,0.972,0.843,0.997,binary,,,,,,
+page-blocks0.dat,SMOTE,LGBMClassifier,0.922,RandomOverSampler,XGBClassifier,0.927,2.0,False,True,-0.005,0.95,0.868,0.992,0.946,0.883,0.99,binary,,,,,,
+glass1.dat,SMOTETomek,LGBMClassifier,0.757,SMOTE,XGBClassifier,0.779,10.0,False,False,-0.022,0.794,0.731,0.889,0.812,0.758,0.892,binary,,,,,,
+regime_alimentaire (id:42172),RandomOverSampler,LGBMClassifier,0.913,SVMSMOTE,LGBMClassifier,0.927,6.0,False,False,-0.014,0.932,0.881,0.975,0.949,0.899,0.973,binary,,,,,,
+primary-tumor (id:1003),RandomOverSampler,GradientBoostingClassifier,0.738,SMOTE,GradientBoostingClassifier,0.795,10.0,False,False,-0.057,0.754,0.891,0.834,0.802,0.925,0.872,binary,,,,,,
+ada_prior (id:1037),RandomOverSampler,GradientBoostingClassifier,0.754,RandomOverSampler,LGBMClassifier,0.755,2.0,False,True,-0.001,0.812,0.684,0.903,0.807,0.689,0.9,binary,,,,,,
+analcatdata_halloffame (id:966),SMOTE,LGBMClassifier,0.795,SVMSMOTE,XGBClassifier,0.816,9.0,False,False,-0.021,0.833,0.695,0.965,0.86,0.718,0.965,binary,,,,,,
+soybean (id:1023),RandomOverSampler,GradientBoostingClassifier,0.965,RandomOverSampler,GradientBoostingClassifier,0.965,1.0,True,True,0.0,0.964,0.986,0.997,0.964,0.986,0.997,binary,,,,,,
+analcatdata_birthday (id:968),RandomOverSampler,LGBMClassifier,0.807,SVMSMOTE,XGBClassifier,0.84,8.0,False,False,-0.033,0.8,0.937,0.944,0.86,0.932,0.936,binary,,,,,,
+dgf_test (id:42883),SVMSMOTE,LGBMClassifier,0.982,RandomOverSampler,XGBClassifier,0.982,1.0,True,True,0.0,0.987,0.971,0.999,0.987,0.971,0.999,binary,,,,,,
+bank32nh (id:833),RandomOverSampler,XGBClassifier,0.732,RandomOverSampler,GradientBoostingClassifier,0.755,8.0,False,False,-0.023,0.775,0.689,0.878,0.803,0.716,0.888,binary,,,,,,
+cpu_act (id:761),SMOTETomek,LGBMClassifier,0.931,SVMSMOTE,LGBMClassifier,0.932,3.0,False,True,-0.001,0.93,0.956,0.985,0.931,0.956,0.985,binary,,,,,,
+cpu_small (id:735),SVMSMOTE,LGBMClassifier,0.915,SMOTETomek,LGBMClassifier,0.917,5.0,False,False,-0.002,0.914,0.946,0.979,0.916,0.947,0.979,binary,,,,,,
+phoneme (id:1489),RandomOverSampler,GradientBoostingClassifier,0.81,RandomOverSampler,XGBClassifier,0.861,9.0,False,False,-0.051,0.854,0.767,0.924,0.884,0.828,0.954,binary,,,,,,
+vertebra-column (id:1524),RandomOverSampler,GradientBoostingClassifier,0.764,RandomOverSampler,XGBClassifier,0.785,12.0,False,False,-0.021,0.799,0.726,0.911,0.817,0.749,0.918,binary,,,,,,
+wholesale-customers (id:1511),SVMSMOTE,XGBClassifier,0.88,SMOTETomek,GradientBoostingClassifier,0.897,11.0,False,False,-0.017,0.904,0.86,0.944,0.917,0.878,0.959,binary,,,,,,
+scene (id:312),SMOTETomek,LGBMClassifier,0.962,SMOTE,GradientBoostingClassifier,0.971,7.0,False,False,-0.009,0.96,0.956,0.99,0.97,0.966,0.989,binary,,,,,,
+synthetic_control (id:1004),SVMSMOTE,LGBMClassifier,0.993,SMOTE,XGBClassifier,0.996,5.0,False,False,-0.003,0.993,0.997,1.0,0.995,0.999,1.0,binary,,,,,,
+socmob (id:934),SMOTE,GradientBoostingClassifier,0.913,RandomOverSampler,GradientBoostingClassifier,0.922,5.0,False,False,-0.009,0.933,0.877,0.985,0.939,0.89,0.987,binary,,,,,,
+analcatdata_germangss (id:1025),RandomOverSampler,LGBMClassifier,0.848,SVMSMOTE,GradientBoostingClassifier,0.868,9.0,False,False,-0.02,0.881,0.794,0.959,0.901,0.822,0.956,binary,,,,,,
+analcatdata_supreme (id:728),RandomOverSampler,GradientBoostingClassifier,0.992,RandomOverSampler,GradientBoostingClassifier,0.992,1.0,True,True,0.0,0.991,0.996,1.0,0.991,0.996,1.0,binary,,,,,,
+ada (id:41156),RandomOverSampler,LGBMClassifier,0.784,RandomOverSampler,GradientBoostingClassifier,0.785,2.0,False,True,-0.001,0.831,0.723,0.914,0.84,0.719,0.919,binary,,,,,,
+cpu (id:796),SMOTETomek,LGBMClassifier,0.996,SMOTETomek,LGBMClassifier,0.996,1.0,True,True,0.0,0.998,0.994,1.0,0.998,0.994,1.0,binary,,,,,,
+vehicle (id:994),SVMSMOTE,XGBClassifier,0.981,RandomOverSampler,LGBMClassifier,0.985,10.0,False,False,-0.004,0.981,0.989,0.998,0.984,0.992,0.999,binary,,,,,,
+machine_cpu (id:733),SMOTETomek,LGBMClassifier,0.887,SMOTE,LGBMClassifier,0.902,7.0,False,False,-0.015,0.897,0.856,0.984,0.915,0.876,0.977,binary,,,,,,
+SPECTF (id:337),SMOTE,XGBClassifier,0.878,RandomOverSampler,GradientBoostingClassifier,0.879,2.0,False,True,-0.001,0.887,0.923,0.952,0.888,0.922,0.957,binary,,,,,,
+churn (id:40701),RandomOverSampler,GradientBoostingClassifier,0.829,RandomOverSampler,LGBMClassifier,0.865,3.0,False,True,-0.036,0.881,0.758,0.912,0.89,0.831,0.917,binary,,,,,,
+mfeat-factors (id:978),SVMSMOTE,XGBClassifier,0.989,SVMSMOTE,GradientBoostingClassifier,0.991,3.0,False,True,-0.002,0.988,0.997,1.0,0.988,0.998,1.0,binary,,,,,,
+mfeat-fourier (id:971),SMOTETomek,LGBMClassifier,0.988,SMOTETomek,GradientBoostingClassifier,0.996,10.0,False,False,-0.008,0.984,0.998,0.999,0.995,0.999,1.0,binary,,,,,,
+arsenic-male-bladder (id:947),RandomOverSampler,LGBMClassifier,0.722,RandomOverSampler,LGBMClassifier,0.722,1.0,True,True,0.0,0.795,0.636,0.836,0.795,0.636,0.836,binary,,,,,,
+wilt (id:40983),SMOTETomek,LGBMClassifier,0.919,SMOTETomek,XGBClassifier,0.924,6.0,False,False,-0.005,0.949,0.857,0.991,0.952,0.866,0.991,binary,,,,,,
+vowel (id:1016),RandomOverSampler,GradientBoostingClassifier,0.98,SVMSMOTE,XGBClassifier,0.99,7.0,False,False,-0.01,0.981,0.995,0.999,0.992,0.997,1.0,binary,,,,,,
+mfeat-morphological (id:962),SMOTETomek,LGBMClassifier,0.992,SVMSMOTE,GradientBoostingClassifier,0.994,5.0,False,False,-0.002,0.991,0.998,0.998,0.992,0.999,0.996,binary,,,,,,
+pc4 (id:1049),RandomOverSampler,LGBMClassifier,0.758,RandomOverSampler,GradientBoostingClassifier,0.791,7.0,False,False,-0.033,0.801,0.651,0.949,0.874,0.662,0.942,binary,,,,,,
+spectrometer (id:954),SVMSMOTE,XGBClassifier,0.938,SVMSMOTE,XGBClassifier,0.938,1.0,True,True,0.0,0.945,0.98,0.993,0.945,0.98,0.993,binary,,,,,,
+JapaneseVowels (id:976),RandomOverSampler,GradientBoostingClassifier,0.973,SVMSMOTE,LGBMClassifier,0.989,9.0,False,False,-0.016,0.978,0.987,0.998,0.989,0.995,1.0,binary,,,,,,
+mfeat-pixel (id:1022),RandomOverSampler,LGBMClassifier,0.985,RandomOverSampler,LGBMClassifier,0.985,1.0,True,True,0.0,0.98,0.997,0.999,0.98,0.997,0.999,binary,,,,,,
+analcatdata_apnea3 (id:764),RandomOverSampler,LGBMClassifier,0.826,RandomOverSampler,GradientBoostingClassifier,0.844,6.0,False,False,-0.018,0.871,0.739,0.96,0.905,0.747,0.961,binary,,,,,,
+mfeat-karhunen (id:1020),RandomOverSampler,GradientBoostingClassifier,0.98,SVMSMOTE,GradientBoostingClassifier,0.987,8.0,False,False,-0.007,0.976,0.996,0.998,0.988,0.996,0.998,binary,,,,,,
+Sick_numeric (id:41946),RandomOverSampler,GradientBoostingClassifier,0.914,RandomOverSampler,LGBMClassifier,0.933,9.0,False,False,-0.019,0.959,0.834,0.994,0.946,0.892,0.996,binary,,,,,,
+analcatdata_lawsuit (id:450),SVMSMOTE,GradientBoostingClassifier,0.931,RandomOverSampler,LGBMClassifier,0.951,7.0,False,False,-0.02,0.966,0.873,0.991,0.97,0.916,0.993,binary,,,,,,
+musk (id:1116),RandomOverSampler,LGBMClassifier,0.997,RandomOverSampler,XGBClassifier,0.998,2.0,False,True,-0.001,0.998,0.995,1.0,0.998,0.996,1.0,binary,,,,,,
+dis (id:40713),RandomOverSampler,LGBMClassifier,0.812,RandomOverSampler,GradientBoostingClassifier,0.835,5.0,False,False,-0.023,0.787,0.995,0.915,0.868,0.99,0.943,binary,,,,,,
+car_subset.csv,RandomOverSampler,RandomForestClassifier,0.834,TomekLinks,GradientBoostingClassifier,0.927,8.0,False,False,-0.093,,,,,,,multiclass,0.821,0.756,0.916,0.905,0.93,0.959
+shuttle.csv,TomekLinks,BaggingClassifier,0.94,RandomOverSampler,RandomForestClassifier,0.988,9.0,False,False,-0.048,,,,,,,multiclass,0.882,0.882,0.994,0.978,0.978,0.999
+penbased.csv,RandomOverSampler,BalancedRandomForestClassifier,0.964,TomekLinks,RandomForestClassifier,0.967,9.0,False,False,-0.003,,,,,,,multiclass,0.967,0.964,0.963,0.97,0.967,0.966
+pageblocks.csv,SMOTE,BaggingClassifier,,TomekLinks,BaggingClassifier,0.816,,False,False,,,,,,,,multiclass,,,,0.728,0.74,0.955
+ecoli.csv,RandomOverSampler,RandomForestClassifier,0.791,TomekLinks,RandomForestClassifier,0.804,5.0,False,False,-0.013,,,,,,,multiclass,0.757,0.755,0.843,0.785,0.762,0.849
+dermatology.csv,RandomOverSampler,RandomForestClassifier,0.974,EditedNearestNeighbours,BalancedRandomForestClassifier,0.981,6.0,False,False,-0.007,,,,,,,multiclass,0.976,0.972,0.976,0.982,0.98,0.982
+contraceptive.csv,NO_RECOMMENDATION,NO_RECOMMENDATION,,SMOTETomek,GradientBoostingClassifier,0.528,,False,False,,,,,,,,multiclass,,,,0.555,0.556,0.568
+balance.csv,EditedNearestNeighbours,GradientBoostingClassifier,0.74,TomekLinks,AdaBoostClassifier,0.779,12.0,False,False,-0.039,,,,,,,multiclass,0.685,0.702,0.839,0.676,0.671,0.877
+total_score.csv,SMOTE,BaggingClassifier,0.68,RandomOverSampler,BalancedRandomForestClassifier,0.762,9.0,False,False,-0.082,,,,,,,multiclass,0.729,0.711,0.702,0.807,0.795,0.78
+website_phishing.csv,SMOTE,RandomForestClassifier,0.863,RandomOverSampler,GradientBoostingClassifier,0.883,26.0,False,False,-0.02,,,,,,,multiclass,0.871,0.872,0.892,0.859,0.922,0.907
+student_lifestyle_dataset _subset.csv,RandomOverSampler,GradientBoostingClassifier,1.0,TomekLinks,BalancedRandomForestClassifier,1.0,1.0,True,True,0.0,,,,,,,multiclass,1.0,1.0,1.0,1.0,1.0,1.0
+steel-plates-fault_subset.csv,SMOTE,BaggingClassifier,0.735,SMOTE,GradientBoostingClassifier,0.788,18.0,False,False,-0.053,,,,,,,multiclass,0.743,0.779,0.737,0.811,0.82,0.785
+soybean_clean.csv,RandomOverSampler,RandomForestClassifier,0.956,RandomOverSampler,RandomForestClassifier,0.956,1.0,True,True,0.0,,,,,,,multiclass,0.974,0.971,0.94,0.974,0.971,0.94
+product_sentiment_machine_hack_subset.csv,RandomOverSampler,RandomForestClassifier,0.684,ADASYN,GradientBoostingClassifier,0.701,11.0,False,False,-0.017,,,,,,,multiclass,0.432,0.468,0.835,0.547,0.501,0.848
+okcupid-stem_seed_3_nrows_2000_nclasses_10_ncols_100_stratify_True_clean_subset.csv,RandomOverSampler,RandomForestClassifier,0.565,SMOTETomek,RandomForestClassifier,0.565,1.0,True,True,0.0,,,,,,,multiclass,0.602,0.466,0.676,0.641,0.406,0.647
+mabbob_ela_as_5d_classify.csv,RandomOverSampler,RandomForestClassifier,0.529,RandomOverSampler,RandomForestClassifier,0.529,1.0,True,True,0.0,,,,,,,multiclass,0.564,0.463,0.625,0.564,0.463,0.625
+mabbob_ela_as_2d_classify.csv,RandomOverSampler,RandomForestClassifier,0.427,RandomOverSampler,RandomForestClassifier,0.427,1.0,True,True,0.0,,,,,,,multiclass,0.414,0.347,0.545,0.414,0.347,0.545
+jungle_chess_2pcs_raw_endgame_complete_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True_subset.csv,SMOTE,GradientBoostingClassifier,0.728,RandomOverSampler,BalancedRandomForestClassifier,0.741,12.0,False,False,-0.013,,,,,,,multiclass,0.732,0.731,0.79,0.749,0.745,0.799
+jungle_chess_2pcs_endgame_rat_lion_subset.csv,TomekLinks,BaggingClassifier,0.967,SMOTETomek,RandomForestClassifier,0.975,22.0,False,False,-0.008,,,,,,,multiclass,0.956,0.949,0.986,0.975,0.955,0.989
+jungle_chess_2pcs_endgame_rat_lion_clean_subset.csv,RandomOverSampler,RandomForestClassifier,0.969,SMOTE,GradientBoostingClassifier,0.974,8.0,False,False,-0.005,,,,,,,multiclass,0.968,0.95,0.985,0.967,0.964,0.987
+jungle_chess_2pcs_endgame_panther_lion_subset.csv,TomekLinks,BaggingClassifier,0.998,RandomOverSampler,BalancedBaggingClassifier,0.998,1.0,True,True,0.0,,,,,,,multiclass,0.999,0.995,0.999,0.998,0.997,0.999
+jungle_chess_2pcs_endgame_panther_elephant_subset.csv,RandomOverSampler,BaggingClassifier,0.988,TomekLinks,BaggingClassifier,0.998,14.0,False,False,-0.01,,,,,,,multiclass,0.989,0.98,0.994,0.999,0.994,0.999
+football-player-position_subset.csv,RandomOverSampler,RandomForestClassifier,0.818,SMOTE,GradientBoostingClassifier,0.826,10.0,False,False,-0.008,,,,,,,multiclass,0.847,0.843,0.827,0.85,0.854,0.833
+eucalyptus_subset.csv,RandomOverSampler,RandomForestClassifier,0.739,RandomOverSampler,RandomForestClassifier,0.739,1.0,True,True,0.0,,,,,,,multiclass,0.771,0.722,0.787,0.771,0.722,0.787
+dgf_96f4164d-956d-4c1c-b161-68724eb0ccdc_clean.csv,RandomOverSampler,RandomForestClassifier,0.878,RandomOverSampler,BalancedBaggingClassifier,0.912,17.0,False,False,-0.034,,,,,,,multiclass,0.877,0.87,0.885,0.918,0.91,0.913
+balance-scale.csv,TomekLinks,AdaBoostClassifier,0.755,EditedNearestNeighbours,GradientBoostingClassifier,0.763,2.0,False,True,-0.008,,,,,,,multiclass,0.614,0.65,0.864,0.71,0.741,0.852
+autoUniv-au7-500.csv,NO_RECOMMENDATION,NO_RECOMMENDATION,,SMOTE,BaggingClassifier,0.432,,False,False,,,,,,,,multiclass,,,,0.447,0.425,0.488
+anneal.csv,SMOTE,GradientBoostingClassifier,0.986,SMOTETomek,GradientBoostingClassifier,0.987,3.0,False,True,-0.001,,,,,,,multiclass,0.979,0.973,0.997,0.98,0.977,0.997
+analcatdata_halloffame_clean.csv,SMOTE,BaggingClassifier,0.718,RandomOverSampler,RandomForestClassifier,0.75,30.0,False,False,-0.032,,,,,,,multiclass,0.622,0.659,0.914,0.729,0.643,0.927
+analcatdata_authorship.csv,RandomOverSampler,GradientBoostingClassifier,0.983,SMOTE,RandomForestClassifier,0.992,16.0,False,False,-0.009,,,,,,,multiclass,0.989,0.977,0.986,0.994,0.992,0.992
+air-quality-and-pollution-assessment_subset.csv,NO_RECOMMENDATION,NO_RECOMMENDATION,,RandomOverSampler,GradientBoostingClassifier,0.929,,False,False,,,,,,,,multiclass,,,,0.928,0.92,0.945
+agriculture_dataset_karnataka_clean_subset.csv,RandomOverSampler,RandomForestClassifier,0.957,RandomOverSampler,RandomForestClassifier,0.957,1.0,True,True,0.0,,,,,,,multiclass,0.967,0.957,0.964,0.967,0.957,0.964
+TESTFORDESCRIPTION-anneal.csv,SMOTETomek,GradientBoostingClassifier,0.986,SMOTETomek,GradientBoostingClassifier,0.986,1.0,True,True,0.0,,,,,,,multiclass,0.977,0.976,0.996,0.977,0.976,0.996
+Success-Rates-2_clean_subset.csv,RandomOverSampler,RandomForestClassifier,0.9,RandomOverSampler,GradientBoostingClassifier,0.921,6.0,False,False,-0.021,,,,,,,multiclass,0.843,0.782,0.975,0.848,0.85,0.985
+QSAR_Bioconcentration_classification.csv,RandomOverSampler,RandomForestClassifier,0.613,ADASYN,RandomForestClassifier,0.622,8.0,False,False,-0.009,,,,,,,multiclass,0.708,0.552,0.67,0.72,0.557,0.679
+Midwest_survey_clean_subset.csv,SMOTE,GradientBoostingClassifier,0.951,RandomOverSampler,BaggingClassifier,0.962,11.0,False,False,-0.011,,,,,,,multiclass,0.958,0.95,0.954,0.96,0.963,0.967
+HCV_data_clean.csv,SMOTE,BaggingClassifier,0.684,SMOTE,RandomForestClassifier,0.765,34.0,False,False,-0.081,,,,,,,multiclass,0.535,0.541,0.896,0.668,0.653,0.929
+Diabetes130US_seed_2_nrows_2000_nclasses_10_ncols_100_stratify_True_clean.csv,RandomOverSampler,RandomForestClassifier,0.424,SMOTE,GradientBoostingClassifier,0.449,19.0,False,False,-0.025,,,,,,,multiclass,0.403,0.394,0.517,0.452,0.416,0.536
+yeast.csv,RandomOverSampler,RandomForestClassifier,0.559,TomekLinks,RandomForestClassifier,0.568,3.0,False,True,-0.009,,,,,,,multiclass,0.563,0.555,0.604,0.584,0.558,0.609
+wine_quality_white.csv,RandomOverSampler,BalancedRandomForestClassifier,0.574,RandomOverSampler,BalancedRandomForestClassifier,0.574,1.0,True,True,0.0,,,,,,,multiclass,0.552,0.443,0.69,0.552,0.443,0.69
+wine_quality_red.csv,RandomOverSampler,BalancedRandomForestClassifier,0.535,RandomOverSampler,BalancedRandomForestClassifier,0.535,1.0,True,True,0.0,,,,,,,multiclass,0.401,0.381,0.687,0.401,0.381,0.687
+wine-quality-red.csv,RandomOverSampler,BalancedRandomForestClassifier,0.535,RandomOverSampler,BalancedRandomForestClassifier,0.535,1.0,True,True,0.0,,,,,,,multiclass,0.401,0.381,0.687,0.401,0.381,0.687
+wall-robot-navigation.csv,NO_RECOMMENDATION,NO_RECOMMENDATION,,SMOTE,GradientBoostingClassifier,0.998,,False,False,,,,,,,,multiclass,,,,0.998,0.997,0.998
+thyroid-dis.csv,RandomOverSampler,RandomForestClassifier,0.555,TomekLinks,GradientBoostingClassifier,0.563,3.0,False,True,-0.008,,,,,,,multiclass,0.527,0.471,0.689,0.592,0.445,0.681
+thyroid-ann.csv,RandomOverSampler,BalancedRandomForestClassifier,0.991,RandomOverSampler,BalancedRandomForestClassifier,0.991,1.0,True,True,0.0,,,,,,,multiclass,0.981,0.999,0.998,0.981,0.999,0.998
+solar-flare.csv,EditedNearestNeighbours,RandomForestClassifier,0.604,TomekLinks,EasyEnsembleClassifier,0.674,51.0,False,False,-0.07,,,,,,,multiclass,0.567,0.604,0.648,0.64,0.666,0.722
+page_blocks.csv,RandomOverSampler,RandomForestClassifier,0.896,RandomOverSampler,RandomForestClassifier,0.896,1.0,True,True,0.0,,,,,,,multiclass,0.87,0.863,0.974,0.87,0.863,0.974
+page-blocks.csv,RandomOverSampler,RandomForestClassifier,0.896,RandomOverSampler,RandomForestClassifier,0.896,1.0,True,True,0.0,,,,,,,multiclass,0.87,0.863,0.974,0.87,0.863,0.974
+helena_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,BalancedRandomForestClassifier,0.199,RandomOverSampler,BalancedRandomForestClassifier,0.199,1.0,True,True,0.0,,,,,,,multiclass,0.112,0.129,0.229,0.112,0.129,0.229
+first-order-theorem-proving_seed_2_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,GradientBoostingClassifier,0.428,RandomOverSampler,RandomForestClassifier,0.455,12.0,False,False,-0.027,,,,,,,multiclass,0.405,0.418,0.504,0.441,0.433,0.532
+first-order-theorem-proving .csv,RandomOverSampler,BalancedRandomForestClassifier,0.546,SMOTE,RandomForestClassifier,0.548,3.0,False,True,-0.002,,,,,,,multiclass,0.53,0.527,0.617,0.526,0.532,0.62
+fabert_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,BalancedRandomForestClassifier,0.228,SMOTETomek,EasyEnsembleClassifier,0.394,37.0,False,False,-0.166,,,,,,,multiclass,0.242,0.239,0.244,0.566,0.203,0.173
+energy-efficiency.csv,SMOTE,GradientBoostingClassifier,,RandomOverSampler,RandomForestClassifier,0.549,,False,False,,,,,,,,multiclass,,,,0.484,0.5,0.598
+dionis_seed_0_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,RandomOverSampler,BalancedRandomForestClassifier,0.475,RandomOverSampler,RandomForestClassifier,0.478,2.0,False,True,-0.003,,,,,,,multiclass,0.397,0.449,0.493,0.403,0.452,0.496
+connect-4_seed_4_nrows_2000_nclasses_10_ncols_100_stratify_True.csv,SMOTE,GradientBoostingClassifier,0.554,ADASYN,GradientBoostingClassifier,0.563,4.0,False,False,-0.009,,,,,,,multiclass,0.523,0.536,0.675,0.534,0.543,0.686
+collins.csv,RandomOverSampler,BalancedRandomForestClassifier,0.232,RandomOverSampler,RandomForestClassifier,0.238,2.0,False,True,-0.006,,,,,,,multiclass,0.217,0.235,0.244,0.221,0.243,0.25
+car_evaluation.csv,RandomOverSampler,BalancedRandomForestClassifier,0.965,TomekLinks,GradientBoostingClassifier,0.975,6.0,False,False,-0.01,,,,,,,multiclass,0.953,0.969,0.98,0.965,0.977,0.987
+ann_thyroid.csv,RandomOverSampler,BalancedRandomForestClassifier,0.986,SMOTE,BaggingClassifier,0.986,1.0,True,True,0.0,,,,,,,multiclass,0.972,0.996,0.997,0.975,0.993,0.997
+allrep.csv,ADASYN,GradientBoostingClassifier,0.812,RandomOverSampler,GradientBoostingClassifier,0.862,5.0,False,False,-0.05,,,,,,,multiclass,0.679,0.81,0.977,0.793,0.836,0.986
+allhypo.csv,RandomOverSampler,GradientBoostingClassifier,0.934,RandomOverSampler,GradientBoostingClassifier,0.934,1.0,True,True,0.0,,,,,,,multiclass,0.889,0.95,0.986,0.889,0.95,0.986
+allhyper.csv,RandomOverSampler,GradientBoostingClassifier,0.821,ADASYN,GradientBoostingClassifier,0.83,4.0,False,False,-0.009,,,,,,,multiclass,0.679,0.749,0.988,0.698,0.795,0.987
+allbp.csv,RandomOverSampler,GradientBoostingClassifier,0.812,RandomOverSampler,GradientBoostingClassifier,0.812,1.0,True,True,0.0,,,,,,,multiclass,0.692,0.819,0.969,0.692,0.819,0.969
+Fetal_cardiotocography_dataset.csv,SMOTE,GradientBoostingClassifier,0.98,RandomOverSampler,RandomForestClassifier,0.983,11.0,False,False,-0.003,,,,,,,multiclass,0.984,0.98,0.988,0.989,0.98,0.99
+Cervical_Cancer_Risk_Factors_clean.csv,SMOTE,GradientBoostingClassifier,0.595,TomekLinks,AdaBoostClassifier,0.611,11.0,False,False,-0.016,,,,,,,multiclass,0.219,0.21,0.813,0.176,0.199,0.825
