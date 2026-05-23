@@ -3,6 +3,7 @@ import sys
 import time
 import datetime
 import re
+import logging
 from decimal import Decimal
 import pandas as pd
 import numpy as np
@@ -28,6 +29,39 @@ import traceback
 import warnings
 warnings.filterwarnings("ignore")
 warnings.filterwarnings("ignore", message=".*sklearn.utils.parallel.delayed.*")
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Configuration constants
+CV_N_SPLITS = 10
+CV_N_REPEATS = 3
+RANDOM_STATE = 42
+MIN_SAMPLES_FOR_SMOTE = 6  # Minimum samples needed per class for SMOTE to work
+TOP_RECOMMENDATIONS = 3
+
+
+def validate_dataset(X, y, balancing_technique_name):
+    """
+    Validate dataset for compatibility with resampling techniques.
+    """
+    # Check minimum samples
+    if len(X) < 2:
+        return False,
+    
+    # For SMOTE-based techniques, check if each class has enough neighbors
+    smote_techniques = {'SMOTE', 'BorderlineSMOTE', 'KMeansSMOTE', 'SVMSMOTE'}
+    if balancing_technique_name in smote_techniques:
+        unique, counts = np.unique(y, return_counts=True)
+        min_samples = counts.min()
+        if min_samples < MIN_SAMPLES_FOR_SMOTE:
+            return False, f"Class with {min_samples} samples is too small for {balancing_technique_name} (requires at least {MIN_SAMPLES_FOR_SMOTE})"
+    
+    return True, None
 
 
 def execute_ml(dataset_location, id_openml):
@@ -62,19 +96,24 @@ def execute_ml(dataset_location, id_openml):
         i = 1
         for balancing in array_balancing:
             try:
-                print("loading: ", i, " of ", len(array_balancing))
+                logger.info(f"Loading: {i} of {len(array_balancing)} - {balancing}")
                 i += 1
+                
+                # Validate dataset compatibility with this technique
+                is_valid, error_msg = validate_dataset(X, y, balancing)
+                if not is_valid:
+                    logger.warning(f"Skipping '{balancing}': {error_msg}")
+                    continue
+                
                 balancing_technique = pre_processing(balancing)
                 if balancing_technique is None:
-                    print(f"Warning: pre_processing returned None for '{balancing}'")
+                    logger.warning(f"pre_processing returned None for '{balancing}'")
                     continue
                 resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
             except (ValueError, KeyError) as e:
-                print(f"Error with balancing technique '{balancing}': {e}")
-                traceback.print_exc()
+                logger.error(f"Error with balancing technique '{balancing}': {e}")
             except Exception as e:
-                print(f"Unexpected error with balancing technique '{balancing}': {e}")
-                traceback.print_exc()
+                logger.error(f"Unexpected error with balancing technique '{balancing}': {e}", exc_info=True)
         
         finish_time = (round(time.time() - start_time,3))
 
@@ -92,12 +131,12 @@ def execute_ml(dataset_location, id_openml):
         
         return dataset_name
     
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"execute_ml failed: {str(e)}", exc_info=True)
         return False
 
 
-#  TEST VERSION - execute algorithms without pre processing nor writting to any KB file
+#  TEST VERSION
 def execute_ml_test(dataset_location, id_openml):
     """Run the workflow without writing knowledge-base outputs."""
     
@@ -114,7 +153,7 @@ def execute_ml_test(dataset_location, id_openml):
         X, y, df_characteristics = features_labels(df, dataset_name)
         problem_type = get_problem_type(y)
         
-        print("features_labels done!")
+        logger.info("features_labels completed!")
         
         #  TEST VERSION
         
@@ -124,22 +163,20 @@ def execute_ml_test(dataset_location, id_openml):
             try:
                 balancing_technique = pre_processing(balancing)
                 if balancing_technique is None:
-                    print(f"Warning: pre_processing returned None for '{balancing}'")
+                    logger.warning(f"pre_processing returned None for '{balancing}'")
                     continue
                 resultsList += classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type)
             except (ValueError, KeyError) as e:
-                print(f"Error with balancing technique '{balancing}': {e}")
-                traceback.print_exc()
+                logger.error(f"Error with balancing technique '{balancing}': {e}")
             except Exception as e:
-                print(f"Unexpected error with balancing technique '{balancing}': {e}")
-                traceback.print_exc()
+                logger.error(f"Unexpected error with balancing technique '{balancing}': {e}", exc_info=True)
         
         #  TEST VERSION
         
         finish_time = (round(time.time() - start_time,3))
 
         if not resultsList:
-            print("No valid model result was produced for this dataset.")
+            logger.warning("No valid model result was produced for this dataset.")
             return False
         
         best_result = find_best_result(resultsList)
@@ -147,15 +184,14 @@ def execute_ml_test(dataset_location, id_openml):
         current_value = calculate_result_score(best_result)
         elapsed_time = str(datetime.timedelta(seconds=round(finish_time,0)))
         
-        print("Best Final Score Obtained    :", current_value)
-        print("Elapsed Time                 :", elapsed_time, "\n")
+        logger.info(f"Best Final Score: {current_value}, Elapsed Time: {elapsed_time}")
         
         #  TEST VERSION
         
         return dataset_name
     
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"execute_ml_test failed: {str(e)}", exc_info=True)
         return False
 
 
@@ -179,8 +215,8 @@ def execute_byCharacteristics(dataset_location, id_openml):
         
         return str_output
         
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"execute_byCharacteristics failed: {str(e)}", exc_info=True)
         return False
 
 
@@ -188,19 +224,19 @@ def execute_byCharacteristics(dataset_location, id_openml):
 def build_classifiers(problem_type, n_classes):
     """Build the classifier list for the detected problem type."""
     classifiers = [
-        #LogisticRegression(random_state=42, max_iter=10000, class_weight='balanced'),
+        #LogisticRegression(random_state=RANDOM_STATE, max_iter=10000, class_weight='balanced'),
         #GaussianNB(),
-        #SVC(random_state=42, class_weight='balanced', probability=True),
+        #SVC(random_state=RANDOM_STATE, class_weight='balanced', probability=True),
         #KNeighborsClassifier(),
-        RandomForestClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
-        #ExtraTreesClassifier(random_state=42, class_weight='balanced', n_jobs=-1),
-        AdaBoostClassifier(random_state=42),
-        BaggingClassifier(random_state=42, n_jobs=-1),
-        GradientBoostingClassifier(random_state=42),
-        EasyEnsembleClassifier(random_state=42, n_jobs=-1),
-        RUSBoostClassifier(random_state=42),
-        BalancedBaggingClassifier(random_state=42, n_jobs=-1),
-        BalancedRandomForestClassifier(random_state=42, n_jobs=-1),
+        RandomForestClassifier(random_state=RANDOM_STATE, class_weight='balanced', n_jobs=-1),
+        #ExtraTreesClassifier(random_state=RANDOM_STATE, class_weight='balanced', n_jobs=-1),
+        AdaBoostClassifier(random_state=RANDOM_STATE),
+        BaggingClassifier(random_state=RANDOM_STATE, n_jobs=-1),
+        GradientBoostingClassifier(random_state=RANDOM_STATE),
+        EasyEnsembleClassifier(random_state=RANDOM_STATE, n_jobs=-1),
+        RUSBoostClassifier(random_state=RANDOM_STATE),
+        BalancedBaggingClassifier(random_state=RANDOM_STATE, n_jobs=-1),
+        BalancedRandomForestClassifier(random_state=RANDOM_STATE, n_jobs=-1),
     ]
 
     #if problem_type == "multiclass":
@@ -390,7 +426,7 @@ def features_labels(df, dataset_name):
     else:
         raise ValueError(f"Cannot find valid target column. Last column has {last_unique} class(es), first column has {first_unique} class(es)")
 
-    mfe = MFE(random_state=42, 
+    mfe = MFE(random_state=RANDOM_STATE, 
           groups=["complexity", "concept", "general", "itemset", "landmarking", "model-based", "statistical"], 
           summary=["mean", "sd", "kurtosis","skewness"])
 
@@ -443,25 +479,25 @@ def features_labels(df, dataset_name):
 
 # Balancing techniques mapping for efficient lookup
 _BALANCING_TECHNIQUES = {
-    "ClusterCentroids": lambda: ClusterCentroids(random_state=42),
-    "CondensedNearestNeighbour": lambda: CondensedNearestNeighbour(random_state=42, n_jobs=-1),
+    "ClusterCentroids": lambda: ClusterCentroids(random_state=RANDOM_STATE),
+    "CondensedNearestNeighbour": lambda: CondensedNearestNeighbour(random_state=RANDOM_STATE, n_jobs=-1),
     "EditedNearestNeighbours": lambda: EditedNearestNeighbours(n_jobs=-1),
     "RepeatedEditedNearestNeighbours": lambda: RepeatedEditedNearestNeighbours(n_jobs=-1),
     "AllKNN": lambda: AllKNN(n_jobs=-1),
-    "InstanceHardnessThreshold": lambda: InstanceHardnessThreshold(random_state=42, n_jobs=-1),
+    "InstanceHardnessThreshold": lambda: InstanceHardnessThreshold(random_state=RANDOM_STATE, n_jobs=-1),
     "NearMiss": lambda: NearMiss(n_jobs=-1),
     "NeighbourhoodCleaningRule": lambda: NeighbourhoodCleaningRule(n_jobs=-1),
-    "OneSidedSelection": lambda: OneSidedSelection(random_state=42, n_jobs=-1),
-    "RandomUnderSampler": lambda: RandomUnderSampler(random_state=42),
+    "OneSidedSelection": lambda: OneSidedSelection(random_state=RANDOM_STATE, n_jobs=-1),
+    "RandomUnderSampler": lambda: RandomUnderSampler(random_state=RANDOM_STATE),
     "TomekLinks": lambda: TomekLinks(n_jobs=-1),
-    "RandomOverSampler": lambda: RandomOverSampler(random_state=42),
-    "SMOTE": lambda: SMOTE(random_state=42),
-    "ADASYN": lambda: ADASYN(random_state=42),
-    "BorderlineSMOTE": lambda: BorderlineSMOTE(random_state=42, n_jobs=-1),
-    "KMeansSMOTE": lambda: KMeansSMOTE(random_state=42, n_jobs=-1),
-    "SVMSMOTE": lambda: SVMSMOTE(random_state=42),
-    "SMOTEENN": lambda: SMOTEENN(random_state=42, n_jobs=-1),
-    "SMOTETomek": lambda: SMOTETomek(random_state=42, n_jobs=-1),
+    "RandomOverSampler": lambda: RandomOverSampler(random_state=RANDOM_STATE),
+    "SMOTE": lambda: SMOTE(random_state=RANDOM_STATE),
+    "ADASYN": lambda: ADASYN(random_state=RANDOM_STATE),
+    "BorderlineSMOTE": lambda: BorderlineSMOTE(random_state=RANDOM_STATE, n_jobs=-1),
+    "KMeansSMOTE": lambda: KMeansSMOTE(random_state=RANDOM_STATE, n_jobs=-1),
+    "SVMSMOTE": lambda: SVMSMOTE(random_state=RANDOM_STATE),
+    "SMOTEENN": lambda: SMOTEENN(random_state=RANDOM_STATE, n_jobs=-1),
+    "SMOTETomek": lambda: SMOTETomek(random_state=RANDOM_STATE, n_jobs=-1),
 }
 
 
@@ -480,7 +516,9 @@ def pre_processing(balancing):
 # fifth:    5       balancing techniques and    3   classification algorithms   = 15    combinations
 # final:    4       balancing techniques and    3   classification algorithms   = 12    combinations
 def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type):
-    """Evaluate each classifier with the selected resampling strategy."""
+    """
+    Evaluate each classifier with the selected resampling strategy.
+    """
 
     n_classes = get_target_class_count(y)
     array_classifiers = build_classifiers(problem_type, n_classes)
@@ -489,14 +527,14 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
     
     for classifier in array_classifiers:
         start_time = time.time()
-        print("Evaluating with balancing:", balancing, "and classifier:", classifier.__class__.__name__)
+        logger.info(f"Evaluating: balancing={balancing}, classifier={classifier.__class__.__name__}")
         
         model = make_pipeline(
             balancing_technique,
             classifier
         )
         
-        cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
+        cv = RepeatedStratifiedKFold(n_splits=CV_N_SPLITS, n_repeats=CV_N_REPEATS, random_state=RANDOM_STATE)
         
         scoring = get_scoring(problem_type)
         
@@ -571,7 +609,7 @@ def get_scoring(problem_type):
 
 
 def get_multiclass_scoring():
-    """Build additional scorers that only make sense for multiclass data."""
+    """Append additional scorers that only make sense for multiclass data."""
     return {
         'precision_macro': make_scorer(precision_score, average='macro', zero_division=0),
         'recall_macro': make_scorer(recall_score, average='macro', zero_division=0),
@@ -605,7 +643,12 @@ def get_multiclass_metrics_from_scores(scores):
     )
 
 def find_best_result(resultsList):
-    """Select the result with the highest composite score."""
+    """
+    Select the result with the highest composite score.
+    
+    Uses entropy_weighted_score to compute a single comparable metric
+    from all evaluation metrics.
+    """
     scores = []
     for result in resultsList:
         scores.append(calculate_result_score(result))
@@ -616,17 +659,21 @@ def find_best_result(resultsList):
     
     string_balancing = best_result.balancing
     
-    print("\nBest classifier is", best_result.algorithm, "with", string_balancing, "\n")
+    logger.info(f"\nBest classifier: {best_result.algorithm} with {string_balancing}\n")
     
     return best_result
 
 
 
 def write_characteristics(df_characteristics, best_result, result_updated, problem_type):
-    """Persist dataset characteristics and the selected pipeline metadata."""
+    """
+    Persist dataset characteristics and the selected pipeline metadata.
+    
+    Updates or inserts rows in the KB based on whether
+    the new result improves upon previously stored results.
+    """
     if df_characteristics.empty:
-        print("--df_characteristics not valid on write_characteristics--")
-        print("df_characteristics:", df_characteristics)
+        logger.error("df_characteristics is empty in write_characteristics")
         return False
     
     try:
@@ -636,13 +683,12 @@ def write_characteristics(df_characteristics, best_result, result_updated, probl
             problem_type,
             columns=list(df_characteristics.columns) + ["pre processing", "algorithm"],
         )
-        #print(df_kb_c, '\n')
         
         dataset_name = df_characteristics["dataset"].iloc[0]
-        df_kb_c_without = df_kb_c.loc[df_kb_c["dataset"] != dataset_name]
-        df_kb_c_selected = df_kb_c.loc[df_kb_c["dataset"] == dataset_name]
+        df_kb_c_without = df_kb_c.loc[df_kb_c["dataset"] != dataset_name].copy()
+        df_kb_c_selected = df_kb_c.loc[df_kb_c["dataset"] == dataset_name].copy()
         
-        df_characteristics = pd.concat([df_characteristics, df_kb_c_without])
+        df_characteristics = pd.concat([df_characteristics, df_kb_c_without], ignore_index=True)
         df_characteristics = df_characteristics.reset_index(drop=True)
         
         #execute_ml
@@ -652,14 +698,14 @@ def write_characteristics(df_characteristics, best_result, result_updated, probl
                 df_characteristics.at[0, 'pre processing'] = best_result.balancing
                 df_characteristics.at[0, 'algorithm'] = best_result.algorithm
                 
-                print("Characteristics written, row added or updated!","\n")
+                logger.info("Characteristics written, row added or updated")
             
             #it was worse
             else:
                 df_characteristics.at[0, 'pre processing'] = df_kb_c_selected["pre processing"].values[0]
                 df_characteristics.at[0, 'algorithm'] = df_kb_c_selected["algorithm"].values[0]
                 
-                print("Characteristics not written!","\n")
+                logger.info("Characteristics not written (previous result was better)")
         
         #execute_byCharacteristics
         else:
@@ -673,8 +719,8 @@ def write_characteristics(df_characteristics, best_result, result_updated, probl
         
         df_characteristics.to_csv(get_kb_file_path("kb_characteristics", problem_type), sep=",", index=False)
         
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"write_characteristics failed: {str(e)}", exc_info=True)
         return False
 
     return True   
@@ -682,11 +728,14 @@ def write_characteristics(df_characteristics, best_result, result_updated, probl
 
 #writes if best
 def write_results(best_result, elapsed_time):
-    """Persist the best overall result if it improves the stored record."""
+    """
+    Persist the best overall result if it improves the stored record.
+    
+    Compares the new result's composite score with any existing result for the
+    dataset and only updates if there's an improvement.
+    """
     if not best_result:
-        print("--best_result or elapsed_time not valid on write_results--")
-        print("best_result:", best_result)
-        print("elapsed_time:", elapsed_time)
+        logger.error(f"write_results: invalid inputs - best_result={best_result}, elapsed_time={elapsed_time}")
         return False
     
     result_updated = False
@@ -695,10 +744,9 @@ def write_results(best_result, elapsed_time):
         
         current_value = calculate_result_score(best_result)
         
-        elapsed_time = str(datetime.timedelta(seconds=round(elapsed_time,0)))
+        elapsed_time_str = str(datetime.timedelta(seconds=round(elapsed_time,0)))
         
-        print("Best Final Score Obtained    :", current_value)
-        print("Elapsed Time                 :", elapsed_time, "\n")
+        logger.info(f"Best Final Score: {current_value}, Elapsed Time: {elapsed_time_str}")
         
         df_kb_r = load_kb_dataframe("kb_results", best_result.problem_type, columns=get_results_columns())
 
@@ -718,27 +766,26 @@ def write_results(best_result, elapsed_time):
                 df_kb_r.at[index, 'time'] = best_result.time
                 for column_name, column_value in metric_payload.items():
                     df_kb_r.at[index, column_name] = column_value
-                df_kb_r.at[index, 'total elapsed time'] = elapsed_time
+                df_kb_r.at[index, 'total elapsed time'] = elapsed_time_str
                 
                 df_kb_r.to_csv(get_kb_file_path("kb_results", best_result.problem_type), sep=",", index=False)
                 
                 result_updated = True
                 
-                print("Results written, row updated!","\n")
+                logger.info("Results written, row updated")
 
             else:
-                print("Results not written!","\n")
+                logger.info("Results not written (previous result was better)")
                 
         else:
-            
-            df_kb_r.loc[len(df_kb_r.index)] = build_kb_row_values(best_result, metric_payload, elapsed_time)
+            df_kb_r.loc[len(df_kb_r.index)] = build_kb_row_values(best_result, metric_payload, elapsed_time_str)
 
             df_kb_r.to_csv(get_kb_file_path("kb_results", best_result.problem_type), sep=",", index=False)
             
-            print("Results written, row added!","\n")  
+            logger.info("Results written, row added")
         
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"write_results failed: {str(e)}", exc_info=True)
         return False
     
     return result_updated
@@ -747,11 +794,14 @@ def write_results(best_result, elapsed_time):
 
 #only writes at first time 
 def write_full_results(resultsList, dataset_name):
-    """Persist all evaluated combinations for a dataset the first time only."""
+    """
+    Persist all evaluated combinations for a dataset the first time only.
+    
+    Prevents duplicate processing by checking if the dataset already exists
+    in the knowledge base before writing.
+    """
     if not resultsList or not dataset_name:
-        print("--resultsList not valid on write_full_results--")
-        print("resultsList:", resultsList)
-        print("dataset_name:", dataset_name)
+        logger.error(f"write_full_results: invalid inputs - resultsList={bool(resultsList)}, dataset_name={dataset_name}")
         return False
     
     try:
@@ -775,13 +825,13 @@ def write_full_results(resultsList, dataset_name):
 
             df_kb_r.to_csv(get_kb_file_path("kb_full_results", problem_type), sep=",", index=False)
             
-            print("Full Results written, rows added!","\n")
+            logger.info(f"Full Results written: {len(resultsList)} rows added")
         
         else:
-            print("Full Results not written!","\n")
+            logger.info("Full Results not written (dataset already in KB)")
         
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logger.error(f"write_full_results failed: {str(e)}", exc_info=True)
         return False
     
     return True
@@ -789,51 +839,55 @@ def write_full_results(resultsList, dataset_name):
 
 #by Euclidean Distance
 def get_best_results_by_characteristics(dataset_name, problem_type):
-    """Find the most similar past datasets and reuse their best pipelines."""
+    """
+    Find the most similar past datasets and reuse their best pipelines.
+    
+    Uses Euclidean distance on normalized meta-features to rank similar datasets
+    and returns the top {TOP_RECOMMENDATIONS} recommendations.
+    """
     if not dataset_name:
-        print("--dataset_name not valid on get_best_results_by_characteristics--")
-        print("best_result:", dataset_name)
+        logger.error(f"get_best_results_by_characteristics: dataset_name is invalid: {dataset_name}")
         return False
     
     df_c = load_kb_dataframe("kb_characteristics", problem_type)
     if df_c.empty:
-        print("--kb_characteristics is empty for problem type--")
-        print("problem_type:", problem_type)
+        logger.error(f"kb_characteristics is empty for problem_type: {problem_type}")
         return False
 
     df_c = df_c.dropna(axis=1)
     df_c = df_c.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
     
-    df_c_a = df_c.loc[df_c['dataset'] == dataset_name]
-    df_c_a = df_c_a.drop(['dataset', 'pre processing','algorithm'], axis=1)
-    list_a = df_c_a.values.tolist()[0]
-    min_a, max_a = min(list_a), max(list_a)
-    if min_a == max_a:
-        list_a = [0.0] * len(list_a)  # All values are identical, normalize to 0
+    # Get current dataset characteristics
+    current_dataset_chars = df_c.loc[df_c['dataset'] == dataset_name]
+    current_dataset_chars = current_dataset_chars.drop(['dataset', 'pre processing','algorithm'], axis=1)
+    current_features = current_dataset_chars.values.tolist()[0]
+    min_current, max_current = min(current_features), max(current_features)
+    if min_current == max_current:
+        current_features_norm = [0.0] * len(current_features)  # All values are identical, normalize to 0
     else:
-        list_a = [(float(i) - min_a) / (max_a - min_a) for i in list_a]
+        current_features_norm = [(float(i) - min_current) / (max_current - min_current) for i in current_features]
 
     df_c = df_c.loc[df_c['dataset'] != dataset_name]
-    list_dist = []
+    distances = []
     for index, row in df_c.iterrows():
-        df_c_b = row.to_frame()
-        df_c_b = df_c_b.drop(['dataset', 'pre processing','algorithm'])
-        list_b = df_c_b.values.tolist()
-        list_b = [x for xs in list_b for x in xs]
-        min_b, max_b = min(list_b), max(list_b)
-        if min_b == max_b:
-            list_b = [0.0] * len(list_b)  # All values are identical, normalize to 0
+        comparison_chars = row.to_frame()
+        comparison_chars = comparison_chars.drop(['dataset', 'pre processing','algorithm'])
+        comparison_features = comparison_chars.values.tolist()
+        comparison_features = [x for xs in comparison_features for x in xs]
+        min_comparison, max_comparison = min(comparison_features), max(comparison_features)
+        if min_comparison == max_comparison:
+            comparison_features_norm = [0.0] * len(comparison_features)  # All values are identical, normalize to 0
         else:
-            list_b = [(float(i) - min_b) / (max_b - min_b) for i in list_b]
-        list_dist.append((row['dataset'], row['pre processing'], row['algorithm'], np.linalg.norm(np.array(list_a) - np.array(list_b))))
+            comparison_features_norm = [(float(i) - min_comparison) / (max_comparison - min_comparison) for i in comparison_features]
+        distances.append((row['dataset'], row['pre processing'], row['algorithm'], np.linalg.norm(np.array(current_features_norm) - np.array(comparison_features_norm))))
         
-    df_dist = pd.DataFrame(list_dist, columns=["dataset", "pre processing", "algorithm","result"])
-    df_dist = df_dist.sort_values(by=['result'])
+    df_dist = pd.DataFrame(distances, columns=["dataset", "pre processing", "algorithm","distance"])
+    df_dist = df_dist.sort_values(by=['distance'])
     df_dist = df_dist.drop_duplicates(subset=['pre processing', 'algorithm'], keep='first')
     df_dist = df_dist.reset_index(drop=True)
-    df_dist = df_dist.head(3)
+    df_dist = df_dist.head(TOP_RECOMMENDATIONS)
     
-    print("Results:\n", df_dist)
+    logger.info(f"Top {TOP_RECOMMENDATIONS} recommendations:\n{df_dist}")
     
     df_dist = df_dist[['pre processing', 'algorithm']]
     
@@ -876,7 +930,19 @@ def calculate_result_score(result):
 
 
 def entropy_weighted_score(metrics):
-    """Compute an entropy-weighted composite score from a metric vector."""
+    """
+    Compute an entropy-weighted composite score from a metric vector.
+    
+    Combines multiple metrics into a single comparable value using entropy-based
+    weighting, giving more weight to more discriminative metrics. Handles edge
+    cases like NaN values, negative numbers, and zero-sum scenarios.
+    
+    Args:
+        metrics: List of metric values to combine
+    
+    Returns:
+        Weighted composite score (float)
+    """
     cleaned_metrics = [float(metric) for metric in metrics if pd.notna(metric)]
     if not cleaned_metrics:
         return np.nan
@@ -912,6 +978,12 @@ def entropy_weighted_score(metrics):
 
 
 def calculate_kb_row_score(row, problem_type):
+    """
+    Compute a comparable score from a stored KB row.
+    
+    Uses the same entropy_weighted_score logic to ensure consistency
+    between newly computed scores and historical KB entries.
+    """
     """Compute a comparable score from a stored KB row."""
     if problem_type == "multiclass":
         metrics = [
@@ -1137,12 +1209,12 @@ def run_execute_ml_for_all_multiclass_datasets():
 
     for index, dataset_file in enumerate(dataset_files, start=1):
         if dataset_file in processed_datasets:
-            print(f"\n[{index}/{len(dataset_files)}] Skipping (already in kb_results_multiclass): {dataset_file}")
+            logger.info(f"[{index}/{len(dataset_files)}] Skipping (already processed): {dataset_file}")
             skipped.append(dataset_file)
             continue
 
         dataset_path = os.path.join(datasets_dir, dataset_file)
-        print(f"\n[{index}/{len(dataset_files)}] Running: {dataset_file}")
+        logger.info(f"[{index}/{len(dataset_files)}] Processing: {dataset_file}")
 
         result = execute_ml(dataset_path, None)
         if result:
@@ -1150,15 +1222,13 @@ def run_execute_ml_for_all_multiclass_datasets():
         else:
             failed.append(dataset_file)
 
-    print("\nBatch run finished.")
-    print(f"Successful: {len(success)}")
-    print(f"Failed    : {len(failed)}")
-    print(f"Skipped   : {len(skipped)}")
+    logger.info("\nBatch run finished.")
+    logger.info(f"Successful: {len(success)}, Failed: {len(failed)}, Skipped: {len(skipped)}")
 
     if failed:
-        print("Failed datasets:")
+        logger.warning(f"Failed datasets ({len(failed)}):")
         for dataset_file in failed:
-            print("-", dataset_file)
+            logger.warning(f"  - {dataset_file}")
 
     return {
         "processed": len(success) + len(failed),
@@ -1169,4 +1239,5 @@ def run_execute_ml_for_all_multiclass_datasets():
 
 
 if __name__ == "__main__":
-    run_execute_ml_for_all_multiclass_datasets()
+    #run_execute_ml_for_all_multiclass_datasets()
+    result = mcTest("car_subset.csv")
