@@ -11,3 +11,4 @@ scipy
 setuptools
 TPOT
 xgboost
+pmlb

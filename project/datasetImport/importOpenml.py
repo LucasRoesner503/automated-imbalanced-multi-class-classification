@@ -1,6 +1,8 @@
 import openml
 import pandas as pd
 import os
+from imblearn.datasets import make_imbalance
+import numpy as np
 
 def retrieve_custom_openml_datasets(
     min_classes=3,
@@ -110,22 +112,167 @@ def log_search_to_excel(config_dict, num_results, filename="openml_search_logs.x
         
     print(f"Search configuration logged to {filename}")
 
+def download_datasets_from_search(search_config, output_dir="project/input/multiclass/datasetsFromOpenML"):
+
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"Searching for datasets with config: {search_config}")
+    matching_datasets = retrieve_custom_openml_datasets(**search_config)
+    
+    if matching_datasets.empty:
+        print("No datasets found matching the criteria.")
+        return 0
+    
+    print(f"Found {len(matching_datasets)} datasets")
+    
+    downloaded_count = 0
+    skipped_count = 0
+    
+    for idx, row in matching_datasets.iterrows():
+        dataset_id = row['did']
+        dataset_name = row['name']
+        
+        safe_filename = f"{dataset_name}.csv"
+        file_path = os.path.join(output_dir, safe_filename)
+        
+        if os.path.exists(file_path):
+            print(f"[SKIPPED] {dataset_name} (already exists)")
+            skipped_count += 1
+            continue
+        
+        try:
+            print(f"[DOWNLOADING] {dataset_name} (ID: {dataset_id})...")
+            
+            dataset = openml.datasets.get_dataset(dataset_id)
+            X, y, categorical_indicator, attribute_names = dataset.get_data(
+                target=dataset.default_target_attribute
+            )
+            
+            data = X.copy()
+            data[dataset.default_target_attribute] = y
+            
+            data.to_csv(file_path, index=False)
+            print(f"[SUCCESS] Saved to {file_path}")
+            downloaded_count += 1
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to download {dataset_name}: {str(e)}")
+            continue
+    
+    print(f"Downloaded: {downloaded_count}, Skipped: {skipped_count}")
+    return downloaded_count
+
+def create_imbalanced_datasets(
+    source_dir="project/input/multiclass/datasetsFromOpenML",
+    output_dir="project/input/multiclass/imbalancedDatasetsFromOpenML",
+    imbalance_ratio=4.0,
+    random_state=42
+):
+    """
+    Create imbalanced versions of binary or multiclass datasets using imblearn.
+    """
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    if not os.path.exists(source_dir):
+        print(f"Source directory {source_dir} does not exist.")
+        return 0
+    
+    csv_files = [f for f in os.listdir(source_dir) if f.endswith('.csv')]
+    
+    if not csv_files:
+        print(f"No CSV files found in {source_dir}")
+        return 0
+    
+    print(f"Found {len(csv_files)} datasets.")
+    print(f"Target imbalance ratio: {imbalance_ratio:.2f}\n")
+    
+    processed_count = 0
+    
+    for csv_file in csv_files:
+        try:
+            file_path = os.path.join(source_dir, csv_file)
+            output_path = os.path.join(output_dir, csv_file)
+            
+            print(f"[PROCESSING] {csv_file}...")
+            
+            df = pd.read_csv(file_path)
+            
+            target_col = df.columns[-1]
+            
+            X = df.drop(columns=[target_col])
+            y = df[target_col]
+            
+            # Get class distribution
+            class_counts = y.value_counts().sort_values(ascending=False)
+            n_classes = len(class_counts)
+            
+            print(f"  - Target column: {target_col}")
+            print(f"  - Number of classes: {n_classes} ({'binary' if n_classes == 2 else 'multiclass'})")
+            print(f"  - Original class distribution: {dict(class_counts)}")
+            
+            # For each minority class, set the ratio relative to majority
+            sampling_strategy = {}
+            majority_count = class_counts.iloc[0]
+            
+            for i, (cls, count) in enumerate(class_counts.items()):
+                if i == 0: # Majority class
+                    continue
+                target_count = int(majority_count / imbalance_ratio)
+                sampling_strategy[cls] = target_count
+            
+            np.random.seed(random_state)
+            X_imbalanced, y_imbalanced = make_imbalance(
+                X, y,
+                sampling_strategy=sampling_strategy,
+                random_state=random_state
+            )
+            
+            imbalanced_df = X_imbalanced.copy()
+            imbalanced_df[target_col] = y_imbalanced
+            
+            imbalanced_df.to_csv(output_path, index=False)
+            
+            # Calculate new imbalance ratio
+            new_class_counts = y_imbalanced.value_counts().sort_values(ascending=False)
+            new_majority_class = new_class_counts.index[0]
+            new_minority_class = new_class_counts.index[-1]
+            new_ratio = new_class_counts[new_majority_class] / new_class_counts[new_minority_class]
+            
+            print(f"  - New imbalance ratio: {new_ratio:.2f}")
+            print(f"  - New class distribution: {dict(new_class_counts)}")
+            print(f"  - Saved to {output_path}\n")
+            processed_count += 1
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to process {csv_file}: {str(e)}\n")
+            continue
+    
+    print(f"Imbalancing complete!")
+    print(f"Processed: {processed_count}")
+    return processed_count
+
 if __name__ == "__main__":
-    execute_excel_configurations()
-    """search_config = {
+    
+    create_imbalanced_datasets(imbalance_ratio=4.0)
+    
+    """#execute_excel_configurations()
+    search_config = {
         'min_classes': 3,
         'max_classes': 50,
         'min_instances': 500,
         'max_instances': 10000,
-        'min_features': 10,
-        'max_features': 40,
-        'min_imbalance': 3.0,
-        'max_imbalance': 100.0,
+        'min_features': 5,
+        'max_features': 100,
+        'min_imbalance': 0.0,
+        'max_imbalance': 3.0,
         'allow_missing_values': False,
         'max_results': 100
     }
     
-    matching_datasets = retrieve_custom_openml_datasets(**search_config)
+    download_datasets_from_search(search_config)"""
+    
+    """matching_datasets = retrieve_custom_openml_datasets(**search_config)
     datasets_found = len(matching_datasets)
     
     log_search_to_excel(search_config, datasets_found)
