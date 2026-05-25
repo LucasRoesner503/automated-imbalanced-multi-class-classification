@@ -2,88 +2,95 @@ import os
 import logging
 import pandas as pd
 import numpy as np
-import shutil
+from scipy import stats
 
 from config import logger, application_path, get_full_results_columns
-from data import (
-    get_kb_file_path, load_kb_dataframe, get_problem_type,
-    resolve_binary_dataset_path, resolve_multiclass_dataset_path
-)
-from ml import execute_byCharacteristics, get_best_results_by_characteristics
+from data import (load_kb_dataframe)
+from ml import get_best_results_by_characteristics
 
-# Configure module logger
 logger = logging.getLogger(__name__)
 
 
-def _create_loocv_kb_files(problem_type, exclude_dataset):
+def get_filtered_kb_data(problem_type, exclude_dataset, df_char_cache=None, df_results_cache=None):
     """
-    Create temporary KB files excluding a specific dataset for LOOCV.
-    
-    Args:
-        problem_type: "binary" or "multiclass"
-        exclude_dataset: Name of dataset to exclude from KB
-    
-    Returns:
-        Tuple of (temp_char_path, temp_results_path, original_char_path, original_results_path)
+    Get KB data with a dataset excluded.
     """
-    original_char_path = get_kb_file_path("kb_characteristics", problem_type)
-    original_results_path = get_kb_file_path("kb_full_results", problem_type)
+    # Load or use cache
+    if df_char_cache is None:
+        df_char = load_kb_dataframe("kb_characteristics", problem_type)
+    else:
+        df_char = df_char_cache.copy()
     
-    # Create backup paths
-    temp_char_path = original_char_path + ".loocv_temp"
-    temp_results_path = original_results_path + ".loocv_temp"
+    if df_results_cache is None:
+        df_results = load_kb_dataframe("kb_full_results", problem_type, columns=get_full_results_columns())
+    else:
+        df_results = df_results_cache.copy()
     
-    # Load current KB data
-    df_char = load_kb_dataframe("kb_characteristics", problem_type)
-    df_results = load_kb_dataframe("kb_full_results", problem_type, columns=get_full_results_columns())
-    
-    # Remove the dataset to evaluate
     df_char_filtered = df_char.loc[df_char['dataset'] != exclude_dataset].copy()
     df_results_filtered = df_results.loc[df_results['dataset'] != exclude_dataset].copy()
     
-    # Save temporary KB files
-    df_char_filtered.to_csv(temp_char_path, sep=",", index=False)
-    df_results_filtered.to_csv(temp_results_path, sep=",", index=False)
+    dataset_info = {
+        'char': df_char.loc[df_char['dataset'] == exclude_dataset].copy(),
+        'results': df_results.loc[df_results['dataset'] == exclude_dataset].copy()
+    }
     
-    # Backup original files
-    shutil.copy(original_char_path, original_char_path + ".backup")
-    shutil.copy(original_results_path, original_results_path + ".backup")
-    
-    # Copy temp files to original locations
-    shutil.copy(temp_char_path, original_char_path)
-    shutil.copy(temp_results_path, original_results_path)
-    
-    return temp_char_path, temp_results_path, original_char_path, original_results_path
+    return df_char_filtered, df_results_filtered, dataset_info
 
 
-def _restore_kb_files(problem_type, original_char_path, original_results_path, temp_char_path, temp_results_path):
-    """Restore original KB files after LOOCV evaluation."""
-    try:
-        # Restore from backups
-        shutil.copy(original_char_path + ".backup", original_char_path)
-        shutil.copy(original_results_path + ".backup", original_results_path)
-        
-        # Clean up temporary files
-        for path in [temp_char_path, temp_results_path, 
-                     original_char_path + ".backup", original_results_path + ".backup"]:
-            if os.path.exists(path):
-                os.remove(path)
-        
-        logger.debug(f"KB files restored for {problem_type}")
-    except Exception as e:
-        logger.error(f"Error restoring KB files: {str(e)}", exc_info=True)
+def calculate_rank_percentile(value, all_values):
+    """
+    Calculate percentile rank (0-100) for a value within a distribution.
+    """
+    valid_values = all_values[~np.isnan(all_values)]
+    if len(valid_values) == 0 or np.isnan(value):
+        return np.nan
+    
+    percentile = (valid_values < value).sum() / len(valid_values) * 100
+    return round(percentile, 2)
+
+
+def compute_metric_deltas(recommended_row, best_row, problem_type):
+    """
+    Compute deltas for all relevant metrics.
+    """
+    deltas = {}
+    
+    if problem_type == "multiclass":
+        metric_cols = [
+            "final score",
+            "multiclass precision macro", 
+            "multiclass recall macro",
+            "multiclass f1 weighted"
+        ]
+    else:
+        metric_cols = [
+            "final score",
+            "balanced accuracy",
+            "f1 score",
+            "roc auc"
+        ]
+    
+    for col in metric_cols:
+        if col in recommended_row.index and col in best_row.index:
+            rec_val = recommended_row[col]
+            best_val = best_row[col]
+            if pd.notna(rec_val) and pd.notna(best_val):
+                deltas[f"delta_{col.replace(' ', '_')}"] = round(float(rec_val - best_val), 4)
+            else:
+                deltas[f"delta_{col.replace(' ', '_')}"] = np.nan
+    
+    return deltas
+
+
+
 
 
 def loocv_evaluate_recommendations(problem_type="multiclass"):
     """
     Perform leave-one-out cross-validation on recommendation system.
-    
-    For each dataset in the KB, temporarily removes it from the KB files,
-    calls execute_byCharacteristics to get recommendations from other datasets,
-    then compares against the actual best combination to evaluate recommendation quality.
     """
     
-    logger.info(f"Starting LOOCV evaluation for {problem_type} datasets...")
+    logger.info(f"Starting improved LOOCV evaluation for {problem_type} datasets...")
     
     # Remove old evaluation results
     output_file = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}.csv")
@@ -94,7 +101,6 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
         except Exception as e:
             logger.warning(f"Could not remove old evaluation file: {str(e)}")
     
-    # Load original KB data for reference
     df_characteristics_original = load_kb_dataframe("kb_characteristics", problem_type)
     df_full_results_original = load_kb_dataframe("kb_full_results", problem_type, columns=get_full_results_columns())
     
@@ -104,164 +110,138 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
     
     results = []
     dataset_names = df_characteristics_original["dataset"].unique()
+    total_datasets = len(dataset_names)
     
-    logger.info(f"Found {len(dataset_names)} datasets to evaluate")
+    logger.info(f"Found {total_datasets} datasets to evaluate")
     
     for idx, dataset_name in enumerate(dataset_names, 1):
-        temp_char_path = None
-        temp_results_path = None
-        original_char_path = None
-        original_results_path = None
-        
         try:
-            logger.info(f"[{idx}/{len(dataset_names)}] LOOCV evaluating: {dataset_name}")
+            logger.info(f"[{idx}/{total_datasets}] LOOCV evaluating: {dataset_name}")
             
-            # Create temporary KB files without this dataset
-            temp_char_path, temp_results_path, original_char_path, original_results_path = \
-                _create_loocv_kb_files(problem_type, dataset_name)
+            # Get filtered KB
+            df_char_filtered, df_results_filtered, dataset_info = get_filtered_kb_data(
+                problem_type, dataset_name,
+                df_char_cache=df_characteristics_original,
+                df_results_cache=df_full_results_original
+            )
             
-            # Get the actual best combination for this dataset (before removing from KB)
-            actual_results = df_full_results_original.loc[df_full_results_original['dataset'] == dataset_name]
-            
-            if actual_results.empty:
+            if dataset_info['results'].empty:
                 logger.warning(f"No results found for {dataset_name}")
-                _restore_kb_files(problem_type, original_char_path, original_results_path, 
-                                temp_char_path, temp_results_path)
                 continue
             
-            # Find the actual best (highest final score)
+            actual_results = dataset_info['results']
+            
+            # Get the actual best combination (highest final score)
+            final_scores = actual_results["final score"].values
+            valid_scores = final_scores[~np.isnan(final_scores)]
+            
+            if len(valid_scores) == 0:
+                logger.warning(f"No valid final scores for {dataset_name}")
+                continue
+            
             best_idx = actual_results["final score"].idxmax()
             best_result = actual_results.loc[best_idx]
             best_preproc = best_result["pre processing"]
             best_algorithm = best_result["algorithm"]
             best_score = best_result["final score"]
             
-            # Get stored recommendation (what was stored as best for this dataset)
-            dataset_char = df_characteristics_original.loc[df_characteristics_original['dataset'] == dataset_name]
-            
+            # Get dataset characteristics
+            dataset_char = dataset_info['char']
             if dataset_char.empty:
                 logger.warning(f"Dataset {dataset_name} not found in characteristics")
-                _restore_kb_files(problem_type, original_char_path, original_results_path, 
-                                temp_char_path, temp_results_path)
                 continue
             
-            
-            # Get the top recommendation from the system based on similar datasets
-            # (with current dataset temporarily excluded from KB)
+            # Get recommendations from filtered KB
             try:
-                # Pass the dataset's characteristics so function can use them for similarity computation
-                # even though the dataset is excluded from the comparison KB
-                recommendations_df = get_best_results_by_characteristics(dataset_name, problem_type, current_features_df=dataset_char)
+                recommendations_df = get_best_results_by_characteristics(
+                    dataset_name, problem_type, 
+                    current_features_df=dataset_char
+                )
                 
                 if recommendations_df is not None and not recommendations_df.empty:
-                    # Get the top recommendation (first row)
                     recommended_preproc = recommendations_df.iloc[0]["pre processing"]
                     recommended_algorithm = recommendations_df.iloc[0]["algorithm"]
                     logger.debug(f"Top recommendation for {dataset_name}: {recommended_preproc} + {recommended_algorithm}")
                 else:
-                    # No recommendations available
                     recommended_preproc = "NO_RECOMMENDATION"
                     recommended_algorithm = "NO_RECOMMENDATION"
                     logger.debug(f"No recommendations found for {dataset_name}")
                     
             except Exception as e:
-                logger.warning(f"Could not get recommendations via get_best_results_by_characteristics: {str(e)}", exc_info=True)
-                # Mark as no recommendation on error
+                logger.warning(f"Error getting recommendations: {str(e)}", exc_info=True)
                 recommended_preproc = "NO_RECOMMENDATION"
                 recommended_algorithm = "NO_RECOMMENDATION"
             
-            # Get the score of the recommended combination
+            # Find recommended combination in actual results
             recommended_results = actual_results.loc[
                 (actual_results["pre processing"] == recommended_preproc) & 
                 (actual_results["algorithm"] == recommended_algorithm)
             ]
             
-            if recommended_results.empty:
-                logger.warning(f"Recommended combination not found in results for {dataset_name}")
+            if recommended_results.empty or recommended_preproc == "NO_RECOMMENDATION":
                 recommended_score = np.nan
                 rank = np.nan
+                percentile_rank = np.nan
                 is_top_1 = False
                 is_top_3 = False
+                is_top_5 = False
+                metric_deltas = {}
             else:
                 recommended_score = recommended_results.iloc[0]["final score"]
+                recommended_row = recommended_results.iloc[0]
                 
-                # Rank the recommended combination within all combinations
-                sorted_scores = actual_results["final score"].sort_values(ascending=False).reset_index(drop=True)
-                rank = (sorted_scores == recommended_score).idxmax() + 1  # 1-indexed rank
+                sorted_scores = actual_results["final score"].sort_values(ascending=False).values
+                rank_count = (sorted_scores >= recommended_score).sum()
+                
+                percentile_rank = calculate_rank_percentile(recommended_score, sorted_scores)
+                
+                rank = rank_count
                 
                 is_top_1 = (rank == 1)
                 is_top_3 = (rank <= 3)
+                is_top_5 = (rank <= 5)
+                
+                metric_deltas = compute_metric_deltas(recommended_row, best_result, problem_type)
             
-            # Calculate delta
             delta_score = recommended_score - best_score if not np.isnan(recommended_score) else np.nan
             
-            # Get additional metrics from both recommended and best combinations
-            rec_balanced_acc = recommended_results.iloc[0]["balanced accuracy"] if not recommended_results.empty else np.nan
-            rec_f1 = recommended_results.iloc[0]["f1 score"] if not recommended_results.empty else np.nan
-            rec_roc_auc = recommended_results.iloc[0]["roc auc"] if not recommended_results.empty else np.nan
+            # Build result row
+            result_row = {
+                "dataset": dataset_name,
+                "num_combinations": len(actual_results), 
+                "recommended_preproc": recommended_preproc,
+                "recommended_algorithm": recommended_algorithm,
+                "recommended_score": round(recommended_score, 4) if not np.isnan(recommended_score) else np.nan,
+                "best_preproc": best_preproc,
+                "best_algorithm": best_algorithm,
+                "best_score": round(best_score, 4),
+                "delta_score": round(delta_score, 4) if not np.isnan(delta_score) else np.nan,
+                "rank": rank if not np.isnan(rank) else np.nan,
+                "percentile_rank": percentile_rank,
+                "is_top_1": is_top_1,
+                "is_top_3": is_top_3,
+                "is_top_5": is_top_5,
+            }
             
-            best_balanced_acc = best_result.get("balanced accuracy", np.nan)
-            best_f1 = best_result.get("f1 score", np.nan)
-            best_roc_auc = best_result.get("roc auc", np.nan)
+            result_row.update(metric_deltas)
             
-            # For multiclass, use multiclass metrics
             if problem_type == "multiclass":
-                rec_precision = recommended_results.iloc[0]["multiclass precision macro"] if not recommended_results.empty else np.nan
-                rec_recall = recommended_results.iloc[0]["multiclass recall macro"] if not recommended_results.empty else np.nan
-                rec_f1_weighted = recommended_results.iloc[0]["multiclass f1 weighted"] if not recommended_results.empty else np.nan
-                
-                best_precision = best_result.get("multiclass precision macro", np.nan)
-                best_recall = best_result.get("multiclass recall macro", np.nan)
-                best_f1_weighted = best_result.get("multiclass f1 weighted", np.nan)
-                
-                results.append({
-                    "dataset": dataset_name,
-                    "recommended_preproc": recommended_preproc,
-                    "recommended_algorithm": recommended_algorithm,
-                    "recommended_score": round(recommended_score, 4) if not np.isnan(recommended_score) else np.nan,
-                    "best_preproc": best_preproc,
-                    "best_algorithm": best_algorithm,
-                    "best_score": round(best_score, 4),
-                    "rank": rank if not np.isnan(rank) else np.nan,
-                    "is_top_1": is_top_1,
-                    "is_top_3": is_top_3,
-                    "delta_score": round(delta_score, 4) if not np.isnan(delta_score) else np.nan,
-                    "rec_precision_macro": round(rec_precision, 4) if not np.isnan(rec_precision) else np.nan,
-                    "rec_recall_macro": round(rec_recall, 4) if not np.isnan(rec_recall) else np.nan,
-                    "rec_f1_weighted": round(rec_f1_weighted, 4) if not np.isnan(rec_f1_weighted) else np.nan,
-                    "best_precision_macro": round(best_precision, 4) if not np.isnan(best_precision) else np.nan,
-                    "best_recall_macro": round(best_recall, 4) if not np.isnan(best_recall) else np.nan,
-                    "best_f1_weighted": round(best_f1_weighted, 4) if not np.isnan(best_f1_weighted) else np.nan,
-                })
+                for metric in ["multiclass precision macro", "multiclass recall macro", "multiclass f1 weighted"]:
+                    if metric in best_result.index:
+                        result_row[f"best_{metric.replace(' ', '_')}"] = round(best_result[metric], 4) if pd.notna(best_result[metric]) else np.nan
+                    if metric in recommended_results.columns and not recommended_results.empty:
+                        result_row[f"rec_{metric.replace(' ', '_')}"] = round(recommended_results.iloc[0][metric], 4) if pd.notna(recommended_results.iloc[0][metric]) else np.nan
             else:
-                results.append({
-                    "dataset": dataset_name,
-                    "recommended_preproc": recommended_preproc,
-                    "recommended_algorithm": recommended_algorithm,
-                    "recommended_score": round(recommended_score, 4) if not np.isnan(recommended_score) else np.nan,
-                    "best_preproc": best_preproc,
-                    "best_algorithm": best_algorithm,
-                    "best_score": round(best_score, 4),
-                    "rank": rank if not np.isnan(rank) else np.nan,
-                    "is_top_1": is_top_1,
-                    "is_top_3": is_top_3,
-                    "delta_score": round(delta_score, 4) if not np.isnan(delta_score) else np.nan,
-                    "rec_balanced_accuracy": round(rec_balanced_acc, 4) if not np.isnan(rec_balanced_acc) else np.nan,
-                    "rec_f1_score": round(rec_f1, 4) if not np.isnan(rec_f1) else np.nan,
-                    "rec_roc_auc": round(rec_roc_auc, 4) if not np.isnan(rec_roc_auc) else np.nan,
-                    "best_balanced_accuracy": round(best_balanced_acc, 4) if not np.isnan(best_balanced_acc) else np.nan,
-                    "best_f1_score": round(best_f1, 4) if not np.isnan(best_f1) else np.nan,
-                    "best_roc_auc": round(best_roc_auc, 4) if not np.isnan(best_roc_auc) else np.nan,
-                })
-        
+                for metric in ["balanced accuracy", "f1 score", "roc auc"]:
+                    if metric in best_result.index:
+                        result_row[f"best_{metric.replace(' ', '_')}"] = round(best_result[metric], 4) if pd.notna(best_result[metric]) else np.nan
+                    if metric in recommended_results.columns and not recommended_results.empty:
+                        result_row[f"rec_{metric.replace(' ', '_')}"] = round(recommended_results.iloc[0][metric], 4) if pd.notna(recommended_results.iloc[0][metric]) else np.nan
+            
+            results.append(result_row)
+            
         except Exception as e:
             logger.error(f"Error evaluating {dataset_name}: {str(e)}", exc_info=True)
-        
-        finally:
-            # Always restore KB files
-            if original_char_path and original_results_path and temp_char_path and temp_results_path:
-                _restore_kb_files(problem_type, original_char_path, original_results_path, 
-                                temp_char_path, temp_results_path)
     
     df_results = pd.DataFrame(results)
     
@@ -269,21 +249,40 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
         logger.warning("No results generated from LOOCV evaluation")
         return df_results
     
-    # Calculate summary statistics
+    # Get total counts and averages for summary statistics
     total_datasets = len(df_results)
     top_1_count = df_results["is_top_1"].sum()
     top_3_count = df_results["is_top_3"].sum()
+    top_5_count = df_results["is_top_5"].sum()
     avg_rank = df_results["rank"].mean()
+    avg_percentile = df_results["percentile_rank"].mean()
     avg_delta = df_results["delta_score"].mean()
+    std_delta = df_results["delta_score"].std()
+    median_delta = df_results["delta_score"].median()
+    
+    # Compute 95% confidence interval for average delta
+    delta_values = df_results["delta_score"].dropna()
+    if len(delta_values) > 1:
+        se = stats.sem(delta_values) 
+        if pd.notna(se) and se > 0:
+            try:
+                ci_95 = stats.t.interval(0.95, len(delta_values)-1, loc=avg_delta, scale=se)
+                logger.info(f"Average delta 95% CI: [{ci_95[0]:.4f}, {ci_95[1]:.4f}]")
+            except Exception as e:
+                logger.debug(f"Could not compute confidence interval: {str(e)}")
+        else:
+            logger.debug(f"Standard error is zero or invalid (se={se}), skipping CI computation")
     
     logger.info(f"\nLOOCV Evaluation Summary ({problem_type}):")
     logger.info(f"  Total datasets: {total_datasets}")
     logger.info(f"  Top 1 (optimal): {top_1_count} ({100*top_1_count/total_datasets:.1f}%)")
     logger.info(f"  Top 3: {top_3_count} ({100*top_3_count/total_datasets:.1f}%)")
+    logger.info(f"  Top 5: {top_5_count} ({100*top_5_count/total_datasets:.1f}%)")
     logger.info(f"  Average rank: {avg_rank:.2f}")
-    logger.info(f"  Average delta score: {avg_delta:.4f}")
+    logger.info(f"  Average percentile rank: {avg_percentile:.2f}%")
+    logger.info(f"  Average delta score: {avg_delta:.4f} ± {std_delta:.4f}")
+    logger.info(f"  Median delta score: {median_delta:.4f}")
     
-    # Save results to CSV
     output_path = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}.csv")
     df_results.to_csv(output_path, sep=",", index=False)
     logger.info(f"Results saved to: {output_path}")
@@ -291,18 +290,10 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
     return df_results
 
 
+
 def loocv_evaluate_all(problem_type=None):
     """
     Run LOOCV evaluation for specified problem types.
-    
-    Args:
-        problem_type: str or None
-            - "binary": Run only binary classification evaluation
-            - "multiclass": Run only multiclass classification evaluation
-            - None or "both": Run both binary and multiclass (default)
-    
-    Returns:
-        pd.DataFrame: Evaluation results
     """
     if problem_type is None:
         problem_type = "both"
