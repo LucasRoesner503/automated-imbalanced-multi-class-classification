@@ -175,9 +175,6 @@ def get_multiclass_metrics_from_scores(scores):
 def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, problem_type):
     """
     Evaluate each classifier with the selected resampling strategy.
-    
-    Cross-validates using RepeatedStratifiedKFold with {CV_N_SPLITS} splits and {CV_N_REPEATS} repeats.
-    Computes multiple metrics and returns Results objects for comparison.
     """
 
     n_classes = get_target_class_count(y)
@@ -198,7 +195,16 @@ def classify_evaluate(X, y, balancing, balancing_technique, dataset_name, proble
         
         scoring = get_scoring(problem_type)
         
-        scores = cross_validate(model, X, y.ravel() if hasattr(y, 'ravel') else y, scoring=scoring, cv=cv, n_jobs=-1)
+        try:
+            scores = cross_validate(model, X, y.ravel() if hasattr(y, 'ravel') else y, scoring=scoring, cv=cv, n_jobs=-1)
+        except ValueError as e:
+            if 'roc_auc' in str(e):
+                logger.warning(f"ROC-AUC failed for {balancing} + {classifier.__class__.__name__}, retrying without ROC-AUC")
+                scoring_without_roc = {k: v for k, v in scoring.items() if k != 'roc_auc'}
+                scores = cross_validate(model, X, y.ravel() if hasattr(y, 'ravel') else y, scoring=scoring_without_roc, cv=cv, n_jobs=-1)
+                scores['test_roc_auc'] = np.full(len(scores['test_balanced_accuracy']), np.nan)
+            else:
+                raise
         
         finish_time = round(time.time() - start_time, 3)
         
