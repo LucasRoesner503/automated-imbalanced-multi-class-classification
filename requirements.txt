@@ -1,4 +1,4 @@
-#For python 3.9.7 (Obtained by using pipreqs)
+#For python 3.11 (Obtained by using pipreqs)
 imbalanced-learn
 lightgbm
 numpy

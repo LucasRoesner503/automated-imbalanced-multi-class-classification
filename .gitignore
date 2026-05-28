@@ -128,6 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Claude Code
+.claude/
+
 project/input/inters-data.csv
 project/input/train_red.csv
 requirements_Linux.txt
