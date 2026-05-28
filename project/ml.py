@@ -4,7 +4,9 @@ import datetime
 import logging
 import pandas as pd
 import numpy as np
-from scipy.spatial.distance import cosine
+from scipy.spatial.distance import euclidean
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
 
 from config import logger, TOP_RECOMMENDATIONS, get_results_columns, get_full_results_columns
 from data import (
@@ -353,9 +355,16 @@ def write_full_results(resultsList, dataset_name):
 
 def get_best_results_by_characteristics(dataset_name, problem_type, current_features_df=None):
     """
-    Find the best pipeline recommendation using inverse-distance-weighted voting
-    across the top-K nearest neighbors in the characteristics KB.
+    Find the best pipeline recommendations using PCA-reduced euclidean distance
+    to identify the nearest neighbor, then ranking all combos from that neighbor's
+    full results as the recommendation list.
+
+    PCA (n=50 components) on min-max normalised features removes noise from the
+    high-dimensional (~230) meta-feature space before computing distances.
+    Remaining slots are filled from successively further neighbors.
     """
+    PCA_COMPONENTS = 50
+
     if not dataset_name:
         logger.error(f"get_best_results_by_characteristics: dataset_name is invalid: {dataset_name}")
         return False
@@ -381,163 +390,89 @@ def get_best_results_by_characteristics(dataset_name, problem_type, current_feat
         )
         return pd.DataFrame(columns=['pre processing', 'algorithm'])
 
-    current_dataset_chars_features = current_dataset_chars.drop(
-        ['dataset', 'pre processing', 'algorithm'], axis=1, errors='ignore'
-    )
-    # Keep only columns that are non-NaN in the current dataset
-    current_dataset_chars_features = current_dataset_chars_features.dropna(axis=1)
-
-    feature_columns = current_dataset_chars_features.columns.tolist()
-
-    # Normalisation parameters for each feature based on the entire KB except the current dataset
-    global_mins  = {}
-    global_maxs  = {}
-    global_means = {}
-    for col in feature_columns:
-        col_values = df_c[col].dropna().values
-        if len(col_values) > 0:
-            global_mins[col]  = float(np.min(col_values))
-            global_maxs[col]  = float(np.max(col_values))
-            global_means[col] = float(np.mean(col_values))
-        else:
-            global_mins[col]  = 0.0
-            global_maxs[col]  = 1.0
-            global_means[col] = 0.5
-
-    # Normalisation helper function using global min-max scaling
-    def normalize_features_global(feature_list, cols):
-        normalized = []
-        for i, val in enumerate(feature_list):
-            col = cols[i]
-            g_min = global_mins[col]
-            g_max = global_maxs[col]
-            normalized.append(0.0 if g_max == g_min else (float(val) - g_min) / (g_max - g_min))
-        return normalized
-
-    current_features = current_dataset_chars_features.values.tolist()[0]
-    logger.debug(f"Current dataset features: {len(current_features)} features extracted")
-
-    current_features_norm = normalize_features_global(current_features, feature_columns)
-
-    # Cosine distance to all other datasets in the KB
-    df_c_comparison = df_c.loc[df_c['dataset'] != dataset_name].copy()
+    # Exclude current dataset from the comparison pool to avoid data leakage
+    df_c_comparison = df_c.loc[df_c['dataset'] != dataset_name].copy().reset_index(drop=True)
     logger.debug(f"Comparison pool: {len(df_c_comparison)} datasets after excluding current dataset")
 
     if df_c_comparison.empty:
         logger.warning("No other datasets available for comparison (KB too small or only 1 dataset)")
         return pd.DataFrame(columns=['pre processing', 'algorithm'])
 
+    feat_cols = [c for c in df_c.columns if c not in ['dataset', 'pre processing', 'algorithm']]
+
+    X_comp = df_c_comparison[feat_cols].values.astype(float)
+    X_cur = current_dataset_chars[feat_cols].values.astype(float)
+
+    # Impute missing values using the comparison pool's column means
+    imp = SimpleImputer(strategy='mean')
+    imp.fit(X_comp)
+    X_comp_imp = imp.transform(X_comp)
+    X_cur_imp = imp.transform(X_cur)
+
+    # Min-max normalise on comparison pool statistics
+    col_min = X_comp_imp.min(axis=0)
+    col_max = X_comp_imp.max(axis=0)
+    col_rng = col_max - col_min
+    col_rng[col_rng == 0] = 1.0
+    X_comp_norm = (X_comp_imp - col_min) / col_rng
+    X_cur_norm = (X_cur_imp - col_min) / col_rng
+
+    # PCA: fit on comparison pool, project both pools into the reduced space
+    n_components = min(PCA_COMPONENTS, X_comp_norm.shape[0] - 1, X_comp_norm.shape[1])
+    pca = PCA(n_components=n_components)
+    pca.fit(X_comp_norm)
+    X_comp_pca = pca.transform(X_comp_norm)
+    X_cur_pca = pca.transform(X_cur_norm)[0]
+
+    # Euclidean distances in PCA space
     distances = []
-    for index, row in df_c_comparison.iterrows():
-        try:
-            comparison_features_list = []
-            n_imputed = 0
-            for col in feature_columns:
-                val = row.get(col, np.nan)
-                if pd.isna(val):
-                    val = global_means[col]
-                    n_imputed += 1
-                comparison_features_list.append(float(val))
+    for i in range(len(df_c_comparison)):
+        row = df_c_comparison.iloc[i]
+        d = float(euclidean(X_cur_pca, X_comp_pca[i]))
+        distances.append((row['dataset'], row['pre processing'], row['algorithm'], d))
 
-            if n_imputed > 0:
-                logger.debug(
-                    f"Dataset {row['dataset']}: imputed {n_imputed}/{len(feature_columns)} features"
-                )
-
-            comparison_features_norm = normalize_features_global(comparison_features_list, feature_columns)
-
-            current_arr    = np.array(current_features_norm)
-            comparison_arr = np.array(comparison_features_norm)
-
-            if np.all(current_arr == 0) or np.all(comparison_arr == 0):
-                weighted_distance = 1.0
-            else:
-                d = cosine(current_arr, comparison_arr)
-                weighted_distance = float(d) if not np.isnan(d) else 1.0
-
-            distances.append((
-                row['dataset'],
-                row['pre processing'],
-                row['algorithm'],
-                weighted_distance
-            ))
-        except Exception as e:
-            logger.warning(f"Error computing distance for dataset {row['dataset']}: {str(e)}")
-
-    logger.debug(f"Computed distances for {len(distances)} datasets")
-
-    if not distances:
-        logger.warning(f"No valid distances computed for {dataset_name}")
-        return pd.DataFrame(columns=['pre processing', 'algorithm'])
-
+    distances.sort(key=lambda x: x[3])
     df_dist = pd.DataFrame(distances, columns=["dataset", "pre processing", "algorithm", "distance"])
-    df_dist = df_dist.sort_values(by='distance').reset_index(drop=True)
+    logger.debug(f"Computed PCA euclidean distances for {len(distances)} datasets")
 
-    # Get top-K neighbors for voting
-    VOTE_K = 2
-    top_k = df_dist.head(VOTE_K)
-
-    vote_scores = {}
-    for _, vrow in top_k.iterrows():
-        key = (vrow['pre processing'], vrow['algorithm'])
-        w = 1.0 / (1.0 + vrow['distance'])
-        vote_scores[key] = vote_scores.get(key, 0.0) + w
-
-    winner_pp, winner_alg = max(vote_scores, key=vote_scores.get)
-    logger.debug(
-        f"Vote winner for {dataset_name}: {winner_pp} + {winner_alg} "
-        f"(scores={vote_scores})"
-    )
-
-    seen = {(winner_pp, winner_alg)}
-    result_rows = [{'pre processing': winner_pp, 'algorithm': winner_alg}]
-
-    # Get top 2 - 3 recommendations from the closest neighbor's full results if available
-    closest_dataset = df_dist.iloc[0]['dataset']
-
-    filled_from_full_results = False
+    # Build recommendation list from neighbors' full results, closest first
     try:
         df_full = load_kb_dataframe("kb_full_results", problem_type, columns=get_full_results_columns())
+    except Exception as e:
+        logger.warning(f"Could not load kb_full_results: {str(e)}")
+        df_full = pd.DataFrame()
+
+    seen = set()
+    result_rows = []
+
+    for _, nrow in df_dist.iterrows():
+        if len(result_rows) >= TOP_RECOMMENDATIONS:
+            break
+        neighbor_dataset = nrow['dataset']
+
         if not df_full.empty:
-            neighbor_pipelines = df_full[df_full['dataset'] == closest_dataset].copy()
+            neighbor_pipelines = df_full[df_full['dataset'] == neighbor_dataset].copy()
             if not neighbor_pipelines.empty:
                 neighbor_pipelines['_score'] = neighbor_pipelines.apply(
                     lambda r: calculate_kb_row_score(r, problem_type), axis=1
                 )
-                neighbor_pipelines = neighbor_pipelines.sort_values('_score', ascending=False)
-
+                neighbor_pipelines = neighbor_pipelines.dropna(subset=['_score']).sort_values(
+                    '_score', ascending=False
+                )
                 for _, nr in neighbor_pipelines.iterrows():
                     if len(result_rows) >= TOP_RECOMMENDATIONS:
                         break
                     key = (nr['pre processing'], nr['algorithm'])
                     if key not in seen:
                         seen.add(key)
-                        result_rows.append({
-                            'pre processing': nr['pre processing'],
-                            'algorithm':      nr['algorithm'],
-                        })
+                        result_rows.append({'pre processing': nr['pre processing'], 'algorithm': nr['algorithm']})
+                continue
 
-                filled_from_full_results = True
-                logger.debug(
-                    f"Slots 1-2 filled from kb_full_results of closest neighbor "
-                    f"'{closest_dataset}' ({len(neighbor_pipelines)} pipelines available)"
-                )
-    except Exception as e:
-        logger.warning(f"Could not load kb_full_results for slot filling: {str(e)}")
-
-    # if we still have slots to fill, use distance-sorted neighbor list
-    if not filled_from_full_results or len(result_rows) < TOP_RECOMMENDATIONS:
-        logger.debug("Filling remaining slots from distance-sorted neighbor list")
-        for _, row in df_dist.iterrows():
-            if len(result_rows) >= TOP_RECOMMENDATIONS:
-                break
-            key = (row['pre processing'], row['algorithm'])
-            if key not in seen:
-                seen.add(key)
-                result_rows.append({
-                    'pre processing': row['pre processing'],
-                    'algorithm':      row['algorithm'],
-                })
+        # Fallback: use kb_characteristics label for this neighbor
+        key = (nrow['pre processing'], nrow['algorithm'])
+        if key not in seen:
+            seen.add(key)
+            result_rows.append({'pre processing': nrow['pre processing'], 'algorithm': nrow['algorithm']})
 
     logger.debug(f"Final recommendation count: {len(result_rows)}")
 
