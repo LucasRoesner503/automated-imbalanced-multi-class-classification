@@ -1,56 +1,21 @@
 name: aic
 channels:
   - defaults
+  - conda-forge
 dependencies:
-  - ca-certificates=2023.12.12=haa95532_0
-  - openssl=1.1.1w=h2bbff1b_0
-  - pip=23.3.1=py39haa95532_0
-  - python=3.9.7=h6244533_1
-  - sqlite=3.41.2=h2bbff1b_0
-  - tzdata=2023d=h04d1e81_0
-  - vc=14.2=h21ff451_1
-  - vs2015_runtime=14.27.29016=h5e58377_2
-  - wheel=0.41.2=py39haa95532_0
+  - python=3.11
+  - pip
   - pip:
-      - argon2-cffi==23.1.0
-      - argon2-cffi-bindings==21.2.0
-      - certifi==2024.2.2
-      - cffi==1.16.0
-      - charset-normalizer==3.3.2
-      - colorama==0.4.6
-      - deap==1.4.1
-      - idna==3.6
-      - imbalanced-learn==0.9.0
-      - joblib==1.3.2
-      - liac-arff==2.5.0
-      - lightgbm==3.3.2
-      - minio==7.2.3
-      - numpy==1.21.5
-      - openml==0.12.2
-      - packaging==23.2
-      - pandas==1.4.2
-      - patsy==0.5.6
-      - pyarrow==15.0.0
-      - pycparser==2.21
-      - pycryptodome==3.20.0
-      - pymfe==0.4.1
-      - pysimplegui==4.60.0
-      - python-dateutil==2.8.2
-      - pytz==2024.1
-      - requests==2.31.0
-      - scikit-learn==1.0.2
-      - scipy==1.8.0
-      - setuptools==58.0.4
-      - six==1.16.0
-      - statsmodels==0.14.1
-      - stopit==1.1.2
-      - texttable==1.7.0
-      - threadpoolctl==3.2.0
-      - tpot==0.11.7
-      - tqdm==4.66.1
-      - typing-extensions==4.9.0
-      - update-checker==0.18.0
-      - urllib3==2.2.0
-      - xgboost==1.6.0
-      - xmltodict==0.13.0
-prefix: C:\Users\pedro\anaconda3\envs\aic
+      - freesimplegui
+      - imbalanced-learn
+      - lightgbm
+      - numpy
+      - openml
+      - pandas
+      - pmlb
+      - pymfe
+      - scikit-learn
+      - scipy
+      - setuptools
+      - tpot
+      - xgboost

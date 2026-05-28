@@ -512,6 +512,8 @@ def execute_ml(dataset_location, id_openml):
         X, y, df_characteristics = features_labels(df, dataset_name)
         problem_type = get_problem_type(y)
         
+        # Other balancing techniques should be added in this array, limited to these ones to reduce execution time,
+        # check _BALANCING_TECHNIQUES in models.py to see available techniques
         array_balancing = [
             "RandomOverSampler", "SMOTE",
             "SMOTETomek", "ADASYN", "EditedNearestNeighbours",
