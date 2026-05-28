@@ -81,19 +81,19 @@ def load_kb_dataframe(base_name, problem_type, columns=None):
 def reduce_unprocessed_datasets_to_1500_samples():
     """
     Find multiclass datasets not yet in KB and reduce them to 1500 samples.
-    
+
     Checks kb_results_multiclass.csv to identify which datasets have been processed.
     For all other datasets in input/multiclass, creates a 1500-sample subset with
     preserved class distribution.
-    
+
     Returns:
         dict with keys: processed (count), success (list), skipped (list), failed (list)
     """
+    datasets_dir = os.path.join(application_path, "input", "multiclass")
+    if not os.path.isdir(datasets_dir):
+        raise FileNotFoundError(f"Directory not found: {datasets_dir}")
+
     try:
-        datasets_dir = os.path.join(application_path, "input", "multiclass")
-        
-        if not os.path.isdir(datasets_dir):
-            raise FileNotFoundError(f"Directory not found: {datasets_dir}")
         
         # Get all CSV files (excluding _subset.csv files)
         dataset_files = sorted([
@@ -124,7 +124,7 @@ def reduce_unprocessed_datasets_to_1500_samples():
         
         unprocessed_count = 0
         for index, dataset_file in enumerate(dataset_files, start=1):
-            if dataset_file in processed_datasets:
+            if os.path.splitext(dataset_file)[0] in processed_datasets:
                 skipped.append(dataset_file)
                 continue
             
