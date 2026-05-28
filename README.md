@@ -9,3 +9,5 @@ In the *learning module* the goal is to combine several resampling and classific
 
 In the *recommendation module*, with the assistance of the previous knowledge base constructed, it can recommend the best combination of
 resampling and classification algorithms to handle a new imbalanced dataset imported. This recommendation is made by finding in the knowledge base the most similar dataset in terms of meta-features.
+
+Recent updates were made so that both modules are now able to handle multiclass datasets in addition to binary datasets
