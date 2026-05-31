@@ -1,0 +1,96 @@
+@startuml domain-model
+title Domain Model — Automated Imbalanced (Multi-class) Classification
+
+left to right direction
+
+class Dataset {
+    +string dataset_name
+    +ProblemType problem_type
+    +int n_classes
+    +ndarray X  <<features>>
+    +ndarray y  <<encoded target>>
+}
+
+enum ProblemType {
+    binary
+    multiclass
+}
+
+class DatasetCharacteristics {
+    +string dataset
+    +~230 meta_features  <<pymfe MFE>>
+    +string pre_processing  <<selected label>>
+    +string algorithm  <<selected label>>
+}
+
+class BalancingTechnique <<value object>> {
+    +string name
+}
+
+class Classifier <<value object>> {
+    +string name
+}
+
+class Pipeline <<imblearn.Pipeline>> {
+    +BalancingTechnique balancing
+    +Classifier classifier
+}
+
+class Result {
+    +string dataset_name
+    +string balancing
+    +string algorithm
+    +float time
+    +float balanced_accuracy
+    +float f1_score
+    +float roc_auc_score
+    +float g_mean_score
+    +float cohen_kappa_score
+    +float multiclass_precision_macro
+    +float multiclass_recall_macro
+    +float multiclass_f1_weighted
+    +float multiclass_matthews_corrcoef
+    +ProblemType problem_type
+}
+
+class CompositeScore <<computed>> {
+    +entropy_weighted_score(metrics) float
+}
+
+class KnowledgeBase <<persistence / CSV>> {
+    +kb_characteristics
+    +kb_results        <<best per dataset>>
+    +kb_full_results   <<all combos>>
+}
+
+class Recommendation {
+    +string pre_processing
+    +string algorithm
+    +int rank
+}
+
+class SimilarityEngine <<service>> {
+    +impute + min-max normalise
+    +PCA (50 components)
+    +euclidean distance (nearest neighbor)
+}
+
+Dataset "1" --> "1" ProblemType : classified as
+Dataset "1" --> "1" DatasetCharacteristics : described by (pymfe)
+
+Pipeline "1" --> "1" BalancingTechnique : uses
+Pipeline "1" --> "1" Classifier : uses
+
+Dataset "1" --> "many" Result : evaluated produces
+Result "1" ..> "1" Pipeline : evaluates
+Result "1" ..> "1" CompositeScore : ranked by
+
+Result "many" --> "1" KnowledgeBase : best stored in
+DatasetCharacteristics "many" --> "1" KnowledgeBase : stored in
+
+SimilarityEngine ..> KnowledgeBase : reads characteristics
+SimilarityEngine ..> DatasetCharacteristics : compares new vs stored
+SimilarityEngine "1" --> "many" Recommendation : produces
+Recommendation "many" ..> "1" Pipeline : suggests
+
+@enduml

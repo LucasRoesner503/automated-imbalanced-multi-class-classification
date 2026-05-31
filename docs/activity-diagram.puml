@@ -1,0 +1,37 @@
+@startuml activity-diagram
+title Activity Diagram
+
+skinparam shadowing false
+skinparam ranksep 90
+skinparam nodesep 50
+skinparam padding 8
+
+start
+
+:Load dataset
+(file path or OpenML id);
+
+:Split X / y, encode,
+extract meta-features;
+
+if (Which module?) then (Learning)
+    :Test balancing techniques
+    x classifiers via cross-validation;
+    :Pick best pipeline;
+    :Write to Knowledge Base;
+    note right
+      <b>Knowledge Base</b> 
+      shared meta-feature store
+    end note
+else (Recommendation)
+    :Find most similar datasets
+    in Knowledge Base;
+    note right
+      reads <b>Knowledge Base</b> 
+    end note
+    :Recommend best pipelines;
+endif
+
+stop
+
+@enduml

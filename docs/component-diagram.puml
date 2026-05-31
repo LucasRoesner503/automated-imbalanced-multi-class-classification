@@ -1,0 +1,47 @@
+@startuml component-diagram
+title Component Diagram
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+
+component "Dataset File" as datasetFile
+component "Knowledge Base" as kb
+
+package "Application" {
+  component "GUI" as gui
+  component "Classifier" as classifier
+  component "Machine Learning Controller" as mlc
+  component "Data Retrieval" as dataRetrieval
+  component "Data Manager" as dataManager
+  component "Optimizer" as optimizer
+
+  interface "Machine Learning Controller" as ifMlc
+  interface "Classifier" as ifClassifier
+  interface "Optimizer" as ifOptimizer
+}
+interface "UI" as ifGui
+
+datasetFile -- "Data Retrieval"
+
+
+mlc -- ifMlc
+ifMlc )-- gui
+ifMlc )-- dataRetrieval
+ifMlc )-- dataManager
+
+classifier -- ifClassifier
+ifClassifier )-- mlc
+
+optimizer -- ifOptimizer
+ifOptimizer )-- classifier
+
+dataRetrieval --( "Data Retrieval"
+
+dataManager --( "Data Manager"
+kb -- "Data Manager"
+
+ifGui )-- gui
+
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml use-case-diagram
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "End User" as user
+actor "Researcher" as researcher
+
+rectangle "Automated Imbalanced Classification System" as system {
+    usecase "Get pipeline recommendation\nfor a dataset"        as UC_REC
+    usecase "Provide dataset from file"                         as UC_FILE
+    usecase "Provide dataset by OpenML id"                      as UC_OML
+    usecase "Choose problem type\n(auto / binary / multiclass)" as UC_PTYPE
+
+    usecase "Build knowledge base\n(evaluate one dataset)"      as UC_LEARN
+    usecase "Batch-process all datasets\nin input/ folder"      as UC_BATCH
+    usecase "Import datasets\n(PMLB / OpenML)"                  as UC_IMPORT
+}
+
+' End User
+user --> UC_REC
+UC_REC ..> UC_PTYPE : <<include>>
+UC_REC ..> UC_FILE  : <<include>>
+UC_REC ..> UC_OML   : <<include>>
+
+' Researcher 
+researcher --> UC_BATCH
+researcher --> UC_IMPORT
+
+' Internal relationships
+UC_BATCH ..> UC_LEARN : <<include>>
+UC_REC   ..> UC_LEARN : <<depends on>>
+
+@enduml

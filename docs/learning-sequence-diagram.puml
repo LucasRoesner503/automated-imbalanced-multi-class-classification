@@ -1,0 +1,51 @@
+@startuml learning-sequence-diagram
+
+title Learning Sequence Diagram
+
+skinparam shadowing false
+
+actor Researcher
+participant "Machine Learning Controller" as MLC
+participant "Data Retrieval" as DR
+participant "Dataset File" as DS
+participant "Classifier" as CLS
+participant "Optimizer" as OPTI
+participant "Data Manager" as DM
+participant "Knowledge Base" as KB
+
+Researcher -> MLC : Starts the learning process for a dataset
+MLC -> DR : Asks to load the dataset
+DR -> DS : Reads the dataset file
+DS --> DR : Returns the raw data
+DR --> MLC : Returns the loaded dataset
+MLC -> DR : Asks for the dataset's characteristics
+note over DR : Extracts the meta-features\nthat describe the dataset
+DR --> MLC : Returns the dataset characteristics
+MLC -> DR : Asks to detect the problem type
+DR --> MLC : Returns the problem type
+
+loop For each balancing technique
+    MLC -> DR : Checks whether the technique fits the dataset
+    DR --> MLC : Confirms if it is valid
+    alt Valid
+        MLC -> CLS : Asks to prepare the balancing step
+        CLS --> MLC : Returns the configured sampler
+        MLC -> CLS : Asks to train and evaluate the classifiers
+        loop For each classifier
+            note over CLS : Builds the pipeline and\ncross-validates the model
+        end
+        CLS --> MLC : Returns the evaluation results
+    else Invalid
+        MLC -> MLC : Logs and skips the technique
+    end
+end
+
+MLC -> OPTI : Asks for the best performing combination
+OPTI --> MLC : Returns the best result
+MLC -> DM : Asks to save the best result
+MLC -> DM : Asks to save all evaluated combinations
+MLC -> DM : Asks to save the dataset characteristics
+DM -> KB : Stores everything in the knowledge base
+MLC --> Researcher : Returns the processed dataset name
+
+@enduml

@@ -1,0 +1,44 @@
+@startuml recommendation-sequence-diagram
+
+title Recommendation Sequence Diagram
+
+skinparam shadowing false
+
+actor User
+participant "GUI" as GUI
+participant "Machine Learning Controller" as MLC
+participant "Data Retrieval" as DR
+participant "Dataset File" as DS
+participant "Optimizer" as OPTI
+participant "Data Manager" as DM
+participant "Knowledge Base" as KB
+
+User -> GUI : Selects a dataset and problem type
+GUI -> MLC : Requests a recommendation for the dataset
+MLC -> DR : Asks to load the dataset
+DR -> DS : Reads the dataset file
+DS --> DR : Returns the raw data
+DR --> MLC : Returns the loaded dataset
+MLC -> DR : Asks for the dataset's characteristics
+note over DR : Extracts the meta-features\nthat describe the dataset
+DR --> MLC : Returns the dataset characteristics
+
+alt Problem type not provided
+    MLC -> DR : Asks to detect the problem type
+    DR --> MLC : Returns binary or multiclass
+end
+
+MLC -> DM : Asks to save the new characteristics
+DM -> KB : Stores the characteristics
+MLC -> OPTI : Requests the best matching pipelines
+OPTI -> DM : Asks for the stored knowledge base
+DM -> KB : Reads the stored records
+KB --> DM : Returns the stored records
+DM --> OPTI : Returns the knowledge base
+note over OPTI : Normalises the characteristics and\nfinds the most similar datasets
+OPTI --> MLC : Returns the ranked pipelines
+MLC -> MLC : Formats the top recommendations
+MLC --> GUI : Returns the recommendation text
+GUI --> User : Shows the top recommended pipelines
+
+@enduml
