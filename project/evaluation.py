@@ -74,19 +74,14 @@ def compute_metric_deltas(recommended_row, best_row, problem_type):
     return deltas
 
 
-def loocv_evaluate_recommendations(problem_type="multiclass", output_suffix="", n_neighbors=None, feature_reduction="pca"):
+def loocv_evaluate_recommendations(problem_type="multiclass"):
     """
     Perform leave-one-out cross-validation on recommendation system.
-
-    output_suffix is appended to the output file name, e.g. "_knn" writes
-    loocv_evaluation_multiclass_knn.csv instead of loocv_evaluation_multiclass.csv.
-    n_neighbors is forwarded to the recommender (1 = single nearest neighbor).
-    feature_reduction is forwarded to the recommender ("pca" or "lasso").
     """
 
     logger.info(f"Starting improved LOOCV evaluation for {problem_type} datasets...")
 
-    output_path = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}{output_suffix}.csv")
+    output_path = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}.csv")
     if os.path.exists(output_path):
         try:
             os.remove(output_path)
@@ -145,9 +140,7 @@ def loocv_evaluate_recommendations(problem_type="multiclass", output_suffix="", 
                 t0 = time.perf_counter()
                 recommendations_df = get_best_results_by_characteristics(
                     dataset_name, problem_type,
-                    current_features_df=dataset_char,
-                    n_neighbors=n_neighbors,
-                    feature_reduction=feature_reduction
+                    current_features_df=dataset_char
                 )
                 recommendation_time = round(time.perf_counter() - t0, 4)
 
@@ -323,7 +316,7 @@ def loocv_evaluate_recommendations(problem_type="multiclass", output_suffix="", 
     return df_results
 
 
-def loocv_evaluate_all(problem_type=None, output_suffix=""):
+def loocv_evaluate_all(problem_type=None):
     """
     Run LOOCV evaluation for specified problem types.
     """
@@ -339,12 +332,12 @@ def loocv_evaluate_all(problem_type=None, output_suffix=""):
     results = []
 
     if problem_type in ["binary", "both"]:
-        df_binary = loocv_evaluate_recommendations(problem_type="binary", output_suffix=output_suffix)
+        df_binary = loocv_evaluate_recommendations(problem_type="binary")
         if not df_binary.empty:
             results.append(df_binary)
 
     if problem_type in ["multiclass", "both"]:
-        df_multiclass = loocv_evaluate_recommendations(problem_type="multiclass", output_suffix=output_suffix)
+        df_multiclass = loocv_evaluate_recommendations(problem_type="multiclass")
         if not df_multiclass.empty:
             results.append(df_multiclass)
 
