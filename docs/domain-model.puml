@@ -69,7 +69,7 @@ class Recommendation {
     +int rank
 }
 
-class SimilarityEngine <<service>> {
+class RecommendationEngine <<service>> {
     +impute + min-max normalise
     +PCA (50 components)
     +euclidean distance (nearest neighbor)
@@ -88,9 +88,9 @@ Result "1" ..> "1" CompositeScore : ranked by
 Result "many" --> "1" KnowledgeBase : best stored in
 DatasetCharacteristics "many" --> "1" KnowledgeBase : stored in
 
-SimilarityEngine ..> KnowledgeBase : reads characteristics
-SimilarityEngine ..> DatasetCharacteristics : compares new vs stored
-SimilarityEngine "1" --> "many" Recommendation : produces
+RecommendationEngine ..> KnowledgeBase : reads characteristics
+RecommendationEngine ..> DatasetCharacteristics : compares new vs stored
+RecommendationEngine "1" --> "many" Recommendation : produces
 Recommendation "many" ..> "1" Pipeline : suggests
 
 @enduml

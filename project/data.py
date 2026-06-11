@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 _SMOTE_TECHNIQUES = {'SMOTE', 'BorderlineSMOTE', 'KMeansSMOTE', 'SVMSMOTE'}
 
+_TARGET_COLUMN_NAMES = {'class', 'target', 'label', 'y', 'outcome'}
+
 
 def validate_dataset(X, y, balancing_technique_name):
     """
@@ -160,20 +162,26 @@ def features_labels(df, dataset_name):
 
     logger.info("\nDataset                      : %s\n", dataset_name)
 
-    y_candidate_last = df.iloc[:, -1].copy()
-    y_candidate_first = df.iloc[:, 0].copy()
+    named_target = next((col for col in df.columns if str(col).strip().lower() in _TARGET_COLUMN_NAMES), None)
 
-    last_unique = y_candidate_last.nunique()
-    first_unique = y_candidate_first.nunique()
-
-    if last_unique >= 2:
-        X = df.iloc[:, :-1]
-        y = y_candidate_last
-    elif first_unique >= 2:
-        X = df.iloc[:, 1:]
-        y = y_candidate_first
+    if named_target is not None:
+        X = df.drop(columns=[named_target])
+        y = df[named_target].copy()
     else:
-        raise ValueError(f"Cannot find valid target column. Last column has {last_unique} class(es), first column has {first_unique} class(es)")
+        y_candidate_last = df.iloc[:, -1].copy()
+        y_candidate_first = df.iloc[:, 0].copy()
+
+        last_unique = y_candidate_last.nunique()
+        first_unique = y_candidate_first.nunique()
+
+        if last_unique >= 2:
+            X = df.iloc[:, :-1]
+            y = y_candidate_last
+        elif first_unique >= 2:
+            X = df.iloc[:, 1:]
+            y = y_candidate_first
+        else:
+            raise ValueError(f"Cannot find valid target column. Last column has {last_unique} class(es), first column has {first_unique} class(es)")
 
     encoded_columns = []
     bool_columns = []

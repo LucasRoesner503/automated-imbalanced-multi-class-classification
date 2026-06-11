@@ -74,14 +74,19 @@ def compute_metric_deltas(recommended_row, best_row, problem_type):
     return deltas
 
 
-def loocv_evaluate_recommendations(problem_type="multiclass"):
+def loocv_evaluate_recommendations(problem_type="multiclass", output_suffix="", n_neighbors=None, feature_reduction="pca"):
     """
     Perform leave-one-out cross-validation on recommendation system.
+
+    output_suffix is appended to the output file name, e.g. "_knn" writes
+    loocv_evaluation_multiclass_knn.csv instead of loocv_evaluation_multiclass.csv.
+    n_neighbors is forwarded to the recommender (1 = single nearest neighbor).
+    feature_reduction is forwarded to the recommender ("pca" or "lasso").
     """
 
     logger.info(f"Starting improved LOOCV evaluation for {problem_type} datasets...")
 
-    output_path = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}.csv")
+    output_path = os.path.join(application_path, "output", f"loocv_evaluation_{problem_type}{output_suffix}.csv")
     if os.path.exists(output_path):
         try:
             os.remove(output_path)
@@ -140,7 +145,9 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
                 t0 = time.perf_counter()
                 recommendations_df = get_best_results_by_characteristics(
                     dataset_name, problem_type,
-                    current_features_df=dataset_char
+                    current_features_df=dataset_char,
+                    n_neighbors=n_neighbors,
+                    feature_reduction=feature_reduction
                 )
                 recommendation_time = round(time.perf_counter() - t0, 4)
 
@@ -188,6 +195,44 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
 
             delta_score = recommended_score - best_score if not np.isnan(recommended_score) else np.nan
 
+            # Best of the top-3 recommendations: evaluate every returned
+            # recommendation and keep the one scoring highest on the
+            # held-out dataset's own grid
+            best3_preproc = "NO_RECOMMENDATION"
+            best3_algorithm = "NO_RECOMMENDATION"
+            best3_score = np.nan
+            if recommendations_df is not None and not recommendations_df.empty:
+                for _, rec in recommendations_df.head(3).iterrows():
+                    match = actual_results.loc[
+                        (actual_results["pre processing"] == rec["pre processing"]) &
+                        (actual_results["algorithm"] == rec["algorithm"])
+                    ]
+                    if match.empty:
+                        continue
+                    match_score = match.iloc[0]["final score"]
+                    if pd.isna(match_score):
+                        continue
+                    if np.isnan(best3_score) or match_score > best3_score:
+                        best3_score = match_score
+                        best3_preproc = rec["pre processing"]
+                        best3_algorithm = rec["algorithm"]
+
+            if np.isnan(best3_score):
+                best3_delta = np.nan
+                best3_rank = np.nan
+                best3_percentile = np.nan
+                best3_is_top_1 = False
+                best3_is_top_3 = False
+                best3_is_top_5 = False
+            else:
+                best3_delta = best3_score - best_score
+                sorted_scores_b3 = actual_results["final score"].sort_values(ascending=False).values
+                best3_rank = (sorted_scores_b3 >= best3_score).sum()
+                best3_percentile = calculate_rank_percentile(best3_score, sorted_scores_b3)
+                best3_is_top_1 = (best3_rank == 1)
+                best3_is_top_3 = (best3_rank <= 3)
+                best3_is_top_5 = (best3_rank <= 5)
+
             result_row = {
                 "dataset": dataset_name,
                 "num_combinations": len(actual_results),
@@ -203,6 +248,15 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
                 "is_top_1": is_top_1,
                 "is_top_3": is_top_3,
                 "is_top_5": is_top_5,
+                "best_top3_preproc": best3_preproc,
+                "best_top3_algorithm": best3_algorithm,
+                "best_top3_score": round(best3_score, 4) if not np.isnan(best3_score) else np.nan,
+                "best_top3_delta": round(best3_delta, 4) if not np.isnan(best3_delta) else np.nan,
+                "best_top3_rank": best3_rank,
+                "best_top3_percentile": best3_percentile,
+                "best_top3_is_top_1": best3_is_top_1,
+                "best_top3_is_top_3": best3_is_top_3,
+                "best_top3_is_top_5": best3_is_top_5,
                 "recommendation_time_s": recommendation_time,
             }
 
@@ -256,6 +310,12 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
     logger.info(f"  Average percentile rank: {avg_percentile:.2f}%")
     logger.info(f"  Average delta score: {avg_delta:.4f} ± {std_delta:.4f}")
     logger.info(f"  Median delta score: {median_delta:.4f}")
+    logger.info(f"  Best of top-3 recommendations:")
+    logger.info(f"    Top 1 (optimal): {df_results['best_top3_is_top_1'].sum()} ({100*df_results['best_top3_is_top_1'].mean():.1f}%)")
+    logger.info(f"    Top 3: {df_results['best_top3_is_top_3'].sum()} ({100*df_results['best_top3_is_top_3'].mean():.1f}%)")
+    logger.info(f"    Top 5: {df_results['best_top3_is_top_5'].sum()} ({100*df_results['best_top3_is_top_5'].mean():.1f}%)")
+    logger.info(f"    Average delta score: {df_results['best_top3_delta'].mean():.4f}")
+    logger.info(f"    Median delta score: {df_results['best_top3_delta'].median():.4f}")
 
     df_results.to_csv(output_path, sep=",", index=False)
     logger.info(f"Results saved to: {output_path}")
@@ -263,7 +323,7 @@ def loocv_evaluate_recommendations(problem_type="multiclass"):
     return df_results
 
 
-def loocv_evaluate_all(problem_type=None):
+def loocv_evaluate_all(problem_type=None, output_suffix=""):
     """
     Run LOOCV evaluation for specified problem types.
     """
@@ -279,12 +339,12 @@ def loocv_evaluate_all(problem_type=None):
     results = []
 
     if problem_type in ["binary", "both"]:
-        df_binary = loocv_evaluate_recommendations(problem_type="binary")
+        df_binary = loocv_evaluate_recommendations(problem_type="binary", output_suffix=output_suffix)
         if not df_binary.empty:
             results.append(df_binary)
 
     if problem_type in ["multiclass", "both"]:
-        df_multiclass = loocv_evaluate_recommendations(problem_type="multiclass")
+        df_multiclass = loocv_evaluate_recommendations(problem_type="multiclass", output_suffix=output_suffix)
         if not df_multiclass.empty:
             results.append(df_multiclass)
 
